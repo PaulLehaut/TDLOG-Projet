@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 
+
 class QuestionGénérale(ABC):
 
-    def __init__(self, texte : str, réponse : str, points : int):
+    def __init__(self, texte : str, réponse, points : int) -> None:
         self._texte = texte
         self._réponse = réponse
         self._points = points
@@ -11,36 +12,66 @@ class QuestionGénérale(ABC):
     def texte(self) -> str:
         return self._texte
 
-    @texte.setter
-    def texte(self, valeur : str) -> None:
-        self._texte = valeur
-    
     @property 
     def réponse(self) -> str:
         return self._réponse
-
-    @réponse.setter 
-    def réponse(self, valeur : str) -> None:
-        self._réponse = valeur
     
     @property
     def points(self) -> int:
         return self._points
-    
-    @points.setter
-    def points(self, valeur : int) -> None:
-        self._points = valeur
 
-    @abstractmethod 
-    def afficher_question(self):
-        pass 
+    def afficher_question(self) -> None:
+        pass
 
     @abstractmethod
     def obtenir_réponse(self):
         pass
 
     @abstractmethod
-    def vérifier_réponse(self, réponse_utilisteur):
+    def vérifier_réponse(self, réponse_utilisteur) -> bool:
         pass
 
+
+class QuestionSimple(QuestionGénérale):
+    """Une question classique avec réponse ouverte comme: Quelle est la capitale de l'Italie ?"""
+
+    def __init__(self, texte : str, réponse : str, points : int) -> None:
+        super().__init__(texte, réponse, points)
+
+    def afficher_question(self) -> None :
+        super().afficher_question()
+
+    def obtenir_réponse(self) -> str:
+        pass
+
+    def vérifier_réponse(self, réponse_utilisteur: str) -> bool:
+        réponse_finale = réponse_utilisteur.strip().lower()
+        réponse_attendue = self.réponse.strip().lower()
+        return réponse_attendue == réponse_finale
+
     
+
+class QuestionQCM(QuestionGénérale):
+    """Une question à choix multiples, les différentes propositions sont indexées par des nombres."""
+
+    def __init__(self, texte : str, réponse : int, points : int, propositions : list[str]) -> None:
+        super().__init__(texte, réponse, points)
+        self._propositions = propositions 
+
+    @property
+    def propositions(self) -> list[str]:
+        return self._propositions
+
+    def afficher_question(self) -> None:
+        super().afficher_question()
+        pass
+
+    def obtenir_réponse(self) -> int:
+        pass
+
+    def vérifier_réponse(self, réponse_utilisteur : int) -> bool:
+        try:
+            return int(réponse_utilisteur) == self.réponse
+        except ValueError: 
+            return False
+
