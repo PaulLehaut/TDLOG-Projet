@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-
+ll
 class QuestionGénérale(ABC):
 
     def __init__(self, énoncé : str, réponse, points : int) -> None:
