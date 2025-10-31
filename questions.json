@@ -1,0 +1,15 @@
+[
+    {
+        "catégorie": "simple",
+        "énoncé": "Quel carton pour JB à la prochaine OB ?",
+        "réponse": "Carton jaune en détente.",
+        "points": 5
+    },
+    {
+        "catégorie": "qcm",
+        "énoncé": "Comment qualifier la performance de l'équipe de foot des ponts à la coupe de l'X 2025 ?",
+        "réponse": 2,
+        "points": 5,
+        "propositions": ["1. Pas mal pour des débutants", "2. Les 2A à la poubelle", "3. Jb contre un 1A omg", "4. 10 balles sur le 1A"]
+    }
+]
