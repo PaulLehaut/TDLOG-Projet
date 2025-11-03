@@ -18,11 +18,5 @@
         "réponse": 3,
         "points": 5,
         "propositions": ["1.Dans le bueno", "2. Pourquoi il lui a parlé de Pierre ce zgeg", "3. Il a aucun football", "4. C'est lui qui leur a offert le champagne"]
-    },
-    {
-        "catégorie": "simple",
-        "énoncé": "Quel est le snap de la soeur de JB ?",
-        "réponse": "@polska_life",
-        "points": 5
     }
 ]
