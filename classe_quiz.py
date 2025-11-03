@@ -71,12 +71,6 @@ class Quiz:
         self.index_live += 1
         if self.index_live >= len(self.questions):
             self.quiz_fini = True
-        
-    def afficher_question_live(self):
-        if not self.quiz_fini:
-            return self.questions[self.index_live].afficher_question()
-        else : # Si le quiz est terminé on renvoie None
-            return None
     
     def valider_réponse(self, réponse) -> bool:
         if not self.quiz_fini:

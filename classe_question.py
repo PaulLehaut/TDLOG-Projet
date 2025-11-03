@@ -19,9 +19,6 @@ class QuestionGénérale(ABC):
     def points(self) -> int:
         return self._points
 
-    def afficher_question(self):
-        pass
-
     @abstractmethod
     def vérifier_réponse(self, réponse_utilisteur) -> bool:
         pass
@@ -32,9 +29,6 @@ class QuestionSimple(QuestionGénérale):
 
     def __init__(self, énoncé : str, réponse : str, points : int) -> None:
         super().__init__(énoncé, réponse, points)
-
-    def afficher_question(self):
-        return super().afficher_question()
 
     def vérifier_réponse(self, réponse_utilisteur: str) -> bool:
         réponse_finale = réponse_utilisteur.strip().lower()
@@ -53,9 +47,6 @@ class QuestionQCM(QuestionGénérale):
     @property
     def propositions(self) -> list[str]:
         return self._propositions
-
-    def afficher_question(self):
-        pass
 
     def vérifier_réponse(self, réponse_utilisteur : int) -> bool:
         try:
