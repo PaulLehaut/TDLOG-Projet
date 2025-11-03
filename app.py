@@ -6,7 +6,7 @@ from classe_question import QuestionQCM
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
-app.secret_key = 'secret_key'
+app.secret_key = 'Paul-est-un-malade-mental'
 CORS(app)
 
 # Chargement des questions

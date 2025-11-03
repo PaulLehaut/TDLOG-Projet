@@ -11,5 +11,12 @@
         "réponse": 2,
         "points": 5,
         "propositions": ["1. Pas mal pour des débutants", "2. Les 2A à la poubelle", "3. Jb contre un 1A omg", "4. 10 balles sur le 1A"]
+    },
+    {
+        "catégorie": "qcm",
+        "énoncé": "A quel point Paul est-il proche de conclure avec la trez des Mines ?",
+        "réponse": 3,
+        "points": 5,
+        "propositions": ["1.Dans le bueno", "2. Pourquoi il lui a parlé de Pierre ce zgeg", "3. Il a aucun football", "4. C'est lui qui leur a offert le champagne"]
     }
 ]
