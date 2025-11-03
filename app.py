@@ -6,7 +6,7 @@ from classe_question import QuestionQCM
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
-app.secret_key = 'Matteo-et-Jb-me-lèchent-les-pieds'
+app.secret_key = 'secret_key'
 CORS(app)
 
 # Chargement des questions
@@ -59,7 +59,7 @@ def get_question_suivante():
     return jsonify(question) # Renvoie de la question en convertissant le dictionnaire au format json
 
 # Second 'EndPoint' pour récupérer la réponse du joueur --------------------------------------
-@app.route('/api/reponse', methods = ['POST'])
+@app.route('/api/reponse', methods = ['POST']) # Mauvaise utilisation de POST (réservé aux modifications), voir pour passer à GET
 def post_answer():
     if 'quiz_index' not in session: # L'utilisateur veut envoyer une réponse sans avoir commencé le quiz
         return jsonify({"erreur": "Quiz non démarré"}), 400
