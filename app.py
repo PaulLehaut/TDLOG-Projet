@@ -7,7 +7,7 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
 app.secret_key = 'Paul-est-un-malade-mental'
-CORS(app)
+CORS(app, origins=['http://127.0.0.1:5500'], supports_credentials=True)
 
 # Chargement des questions
 quiz_test = Quiz('questions.json')
