@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, session, request
 from flask_cors import CORS
-from classe_quiz import Quiz  
-from classe_question import QuestionQCM 
+from classes_python.classe_quiz import Quiz  
+from classes_python.classe_question import QuestionQCM 
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
