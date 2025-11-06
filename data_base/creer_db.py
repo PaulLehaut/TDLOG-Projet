@@ -7,7 +7,7 @@ data_base_nom = os.path.join(dossier_db, nom_fichier)
 os.makedirs(dossier_db, exist_ok = True)
 
 def initialiser_db():
-    conn = sqlite3.connect(data_base_nom)
+    conn = sqlite3.connect(data_base_nom) # Il s'agit d'une connexion à la database
     cursor = conn.cursor() # Outil de commande
 
     # On supprime ce qui pourrait déjà exister pour repartir de zéro à l'exécution
@@ -100,3 +100,9 @@ def initialiser_db():
 
 if __name__ == "__main__":
     initialiser_db()
+    conn = sqlite3.connect(data_base_nom)
+    conn.row_factory = sqlite3.Row
+    liste_quiz = conn.execute("SELECT id, nom, description FROM Quiz").fetchall()
+    conn.close() # On oublie pas de fermer la connexion
+    liste_quiz_dict = [dict(quiz) for quiz in liste_quiz] # Conversion en liste de dictionnaire formelle pour passer au format json
+    print(liste_quiz_dict[0]) 

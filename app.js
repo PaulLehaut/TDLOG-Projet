@@ -7,7 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const affichage_score = document.getElementById('affichage_score');
 
     // On récupère l'URL des EndPoints
-    const api_url_afficher_question_suivante = 'http://127.0.0.1:5000/api/premier_test';
+    const api_url_sélection_quiz = 'http://127.0.0.1:5000/api/selection_quiz'
+    const api_url_démarrage_quiz = 'http://127.0.0.1:5000/api/quiz/start/'
+    const api_url_afficher_question_suivante = 'http://127.0.0.1:5000/api/quiz/question';
     const api_url_reset = 'http://127.0.0.1:5000/api/reset';
     const api_url_post_réponse = 'http://127.0.0.1:5000/api/reponse'
 
@@ -18,6 +20,74 @@ document.addEventListener('DOMContentLoaded', () => {
     async function pause(ms)
     {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+
+    // Sélection du Quiz
+    async function sélection_quiz()
+    {
+        console.log("Sélection d'un quiz.")
+        
+        try 
+        {
+            énoncé_question.innerHTML = '';
+            boîte_réponse.innerHTML = '';
+            const list_quiz = await fetch(api_url_sélection_quiz, {credentials: 'include'});
+            const list_quiz_js = await list_quiz.json();
+            console.log("Quiz reçus.")
+
+            const liste_boutons_quiz = [];
+            list_quiz_js.forEach((quiz, index) =>
+            {
+                const bouton = document.createElement('button');
+                bouton.textContent = quiz['nom'];
+                bouton.addEventListener('click', () => 
+                {
+                    console.log(`Choix du quiz: ${quiz['nom']}.`);
+                    id_quiz_choisi = quiz['id'];
+                    liste_boutons_quiz.forEach(bouton => bouton.disabled = true)
+                    boîte_réponse.innerHTML = '';
+                    démarrage(id_quiz_choisi);
+                })
+                liste_boutons_quiz.push(bouton);
+                boîte_réponse.appendChild(bouton);
+            })
+
+        }
+        catch(erreur)
+        {
+            énoncé_question.textContent = "Erreur dans la sélection du quiz.";
+            console.error("Erreur dans la sélection du quiz: ", erreur);
+        }
+    };
+
+    // On lance le quiz
+    async function démarrage(id_quiz_choisi)
+    {
+        try
+        {
+            const quiz_data = await fetch(`${api_url_démarrage_quiz}${id_quiz_choisi}`, {credentials: 'include'});
+            const quiz_data_js = await quiz_data.json();
+            énoncé_question.innerHTML = '';
+            boîte_réponse.innerHTML = '';
+            const intro = "Vous avez choisi le quiz: ";
+            énoncé_question.textContent = `${intro}${quiz_data_js['nom']}`;
+            boîte_réponse.textContent = quiz_data_js['description'];
+            const bouton = document.createElement('button');
+            bouton.textContent = "Commencer le quiz ?";
+            bouton.addEventListener('click', async () =>
+            {
+                await pause(1000);
+                afficher_prochaine_question();
+                bouton.disabled = true;
+            })
+            boîte_réponse.appendChild(bouton);
+        }
+        catch(erreur)
+        {
+            énoncé_question.textContent = "Erreur dans le lancement du quiz.";
+            console.error("Erreur dans le lancement du quiz: ", erreur);
+        }
     }
 
 
@@ -160,10 +230,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Démarrage du Quiz
-    afficher_prochaine_question();
-
-
     // On redémarre le quiz
     async function reset()
     {
@@ -174,9 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data_reset = await fetch(api_url_reset, {credentials: 'include'}); // Demande à réinitialiser le quiz (ok car méthode GET), on attend que le serveur réponde grâce à await
             const message_reset = await data_reset.json(); // Le code python renvoie la question sous la forme d'un dictionnaire, on la convertit donc au format json pour la lecture
             
+            affichage_score.textContent = 0;
             console.log("Teste réinitialisé."); // On vérifie qu'on a bien réinitialisé
-
-            afficher_prochaine_question();
+            
+            sélection_quiz();
         }
         catch(erreur)
         {
@@ -184,4 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Erreur de connexion avec le serveur:", erreur)
         }
     }
+
+    // On démarre !!!
+    sélection_quiz();
 });
