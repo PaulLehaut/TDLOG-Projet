@@ -5,13 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const énoncé_question = document.getElementById('énoncé_question');
     const boîte_réponse = document.getElementById('boîte_réponse');
     const affichage_score = document.getElementById('affichage_score');
+    const compteur_question = document.getElementById('compteur-question');
+    const boîte_choix_nb_questions = document.getElementById('choix-nombre-questions');
 
     // On récupère l'URL des EndPoints
     const api_url_sélection_quiz = 'http://127.0.0.1:5000/api/selection_quiz'
     const api_url_démarrage_quiz = 'http://127.0.0.1:5000/api/quiz/start/'
     const api_url_afficher_question_suivante = 'http://127.0.0.1:5000/api/quiz/question';
     const api_url_reset = 'http://127.0.0.1:5000/api/reset';
-    const api_url_post_réponse = 'http://127.0.0.1:5000/api/reponse'
+    const api_url_post_réponse = 'http://127.0.0.1:5000/api/reponse';
 
     /** 
     * On définit une fonction pour mettre le jeu en pause (pour après une réponse par exemple)
@@ -22,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    let total_question = 0; // Variable globale indiquant le total de question
 
     // Sélection du Quiz
     async function sélection_quiz()
@@ -32,12 +35,15 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             énoncé_question.innerHTML = '';
             boîte_réponse.innerHTML = '';
-            const list_quiz = await fetch(api_url_sélection_quiz, {credentials: 'include'});
-            const list_quiz_js = await list_quiz.json();
-            console.log("Quiz reçus.")
-
+            compteur_question.style.display = 'none';
+            const liste_quiz = await fetch(api_url_sélection_quiz, {credentials: 'include'});
+            const liste_quiz_js = await liste_quiz.json();
+            console.log("Quiz reçus.");
+            
+            const nb_questions = document.getElementById('limite-questions')
+            boîte_choix_nb_questions.style.display = 'block';
             const liste_boutons_quiz = [];
-            list_quiz_js.forEach((quiz, index) =>
+            liste_quiz_js.forEach((quiz, index) =>
             {
                 const bouton = document.createElement('button');
                 bouton.textContent = quiz['nom'];
@@ -45,9 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 {
                     console.log(`Choix du quiz: ${quiz['nom']}.`);
                     id_quiz_choisi = quiz['id'];
+                    const nb_questions_choisi = nb_questions.value;
                     liste_boutons_quiz.forEach(bouton => bouton.disabled = true)
                     boîte_réponse.innerHTML = '';
-                    démarrage(id_quiz_choisi);
+                    démarrage(id_quiz_choisi, nb_questions_choisi);
                 })
                 liste_boutons_quiz.push(bouton);
                 boîte_réponse.appendChild(bouton);
@@ -62,14 +69,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // On lance le quiz
-    async function démarrage(id_quiz_choisi)
+    async function démarrage(id_quiz_choisi, nb_questions)
     {
         try
         {
-            const quiz_data = await fetch(`${api_url_démarrage_quiz}${id_quiz_choisi}`, {credentials: 'include'});
+
+            const quiz_data = await fetch(`${api_url_démarrage_quiz}${id_quiz_choisi}?limite=${nb_questions}`, {credentials: 'include'});
             const quiz_data_js = await quiz_data.json();
+
             énoncé_question.innerHTML = '';
             boîte_réponse.innerHTML = '';
+            boîte_choix_nb_questions.style.display = 'none';
+
             const intro = "Vous avez choisi le quiz: ";
             énoncé_question.textContent = `${intro}${quiz_data_js['nom']}`;
             boîte_réponse.textContent = quiz_data_js['description'];
@@ -82,6 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 bouton.disabled = true;
             })
             boîte_réponse.appendChild(bouton);
+            total_question = quiz_data_js.nombre_questions;
+            compteur_question.style.display = 'block'
         }
         catch(erreur)
         {
@@ -108,12 +121,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Puis on gère la réponse utilisateur
             boîte_réponse.innerHTML = '';
-            if (question.catégorie ==="qcm")
+            if (question.type_question ==="qcm")
             {
+                compteur_question.textContent = `Question ${question.index + 1}/ ${total_question}`;
                 obtenir_réponse_qcm(question.propositions); // Cette fonction récupère la réponse et la vérifie à l'aide de vérifier_réponse(réponse_utilisateur)
             }
-            else if (question.catégorie ==="simple")
+            else if (question.type_question ==="simple")
             {
+                compteur_question.textContent = `Question ${question.index + 1}/ ${total_question}`;
                 obtenir_réponse_question_simple(); // Cette fonction récupère la réponse et la vérifie à l'aide de vérifier_réponse(réponse_utilisateur)
             }
             else if (question.état === "terminé")
@@ -127,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     bouton.disabled = true;
                 })
                 boîte_réponse.appendChild(bouton);
+                compteur_question.style.display = 'none';
             }
         }
         catch(erreur)
@@ -239,7 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
         {
             const data_reset = await fetch(api_url_reset, {credentials: 'include'}); // Demande à réinitialiser le quiz (ok car méthode GET), on attend que le serveur réponde grâce à await
             const message_reset = await data_reset.json(); // Le code python renvoie la question sous la forme d'un dictionnaire, on la convertit donc au format json pour la lecture
-            
+            compteur_question.textContent = `Question ${1}/ ${total_question}`;
+            compteur_question.style.display = 'none';
             affichage_score.textContent = 0;
             console.log("Teste réinitialisé."); // On vérifie qu'on a bien réinitialisé
             
@@ -252,6 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // On démarre !!!
+    // On démarre !!! --------------------------------------------------------------------
     sélection_quiz();
 });

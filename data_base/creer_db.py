@@ -1,5 +1,6 @@
 import sqlite3 # On utilise sqlite3 pour la database
 import os
+import sys
 
 dossier_db = 'data_base'
 nom_fichier = 'quiz.db'
@@ -32,7 +33,8 @@ def initialiser_db():
     CREATE TABLE Question (
                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                    quiz_id INTEGER NOT NULL,
-                   catégorie TEXT NOT NULL,
+                   type_question TEXT NOT NULL,
+                   sujet_question TEXT NOT NULL,
                    énoncé TEXT NOT NULL,
                    points INTEGER NOT NULL,
                    réponse_correcte TEXT NOT NULL,
@@ -40,6 +42,8 @@ def initialiser_db():
                    );
     """)
     # quiz_id spécifie à quel quiz cette question appartient
+    # type_question indique si la question est une question simple ou un qcm
+    # sujet_question donne le sujet de la question
     # FOREIGN KEY (quiz_id) (la colonne quiz_id contient une clef venant d'une autre table) REFERENCES Quiz (id) (La table de provenance est Quiz, la clef vient de la colonne id)
 
     # Troisième table spécifique pour les propositions des questions de type QCM
@@ -55,17 +59,19 @@ def initialiser_db():
 
     print("Tables bien créées !")
 
-    try:
+    try: # Insertion des données de quiz
+
+        # Quiz test -----------------------------------------------------------------------------------------------------------------------------------
         cursor.execute("INSERT INTO Quiz (nom, description) VALUES (?, ?)",
-                       ("Quiz de Test", "Mon quiz de test.")) # Créé le quiz de test
+                       ("Quiz Privé", "Mon quiz de test.")) # Créé le quiz de test
         quiz_id_1 = cursor.lastrowid
 
         # On ajoute les questions de test
-        cursor.execute("INSERT INTO Question (quiz_id, catégorie, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?)",
-                       (quiz_id_1, "simple", "Quel carton pour JB à la prochaine OB ?", 5, "Carton jaune en détente"))
+        cursor.execute("INSERT INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
+                       (quiz_id_1, "simple", "Privé", "Quel carton pour JB à la prochaine OB ?", 5, "Carton jaune en détente"))
         
-        cursor.execute("INSERT INTO Question (quiz_id, catégorie, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?)",
-                       (quiz_id_1, "qcm", "Comment qualifier la performance de l'équipe de foot des ponts à la coupe de l'X 2025 ?", 5, "2"))
+        cursor.execute("INSERT INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
+                       (quiz_id_1, "qcm", "Privé", "Comment qualifier la performance de l'équipe de foot des ponts à la coupe de l'X 2025 ?", 5, "2"))
         question_qcm_id_1 = cursor.lastrowid
         propositions_question_qcm_1 = [
             (question_qcm_id_1, 1, "1. Pas mal pour des débutants"),
@@ -76,8 +82,8 @@ def initialiser_db():
         cursor.executemany("INSERT INTO Proposition (question_id, index_choix, proposition) VALUES (?, ?, ?)",
                            propositions_question_qcm_1)
 
-        cursor.execute("INSERT INTO Question (quiz_id, catégorie, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?)",
-                       (quiz_id_1, "qcm", "A quel point Paul est-il proche de conclure avec la trez des Mines ?", 5, "3"))
+        cursor.execute("INSERT INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
+                       (quiz_id_1, "qcm", "Privé", "A quel point Paul est-il proche de conclure avec la trez des Mines ?", 5, "3"))
         question_qcm_id_2 = cursor.lastrowid
         propositions_question_qcm_2 = [
             (question_qcm_id_2, 1, "1. Dans le bueno"),
@@ -99,10 +105,14 @@ def initialiser_db():
         conn.close() # On ferme la connexion
 
 if __name__ == "__main__":
-    initialiser_db()
-    conn = sqlite3.connect(data_base_nom)
-    conn.row_factory = sqlite3.Row
-    liste_quiz = conn.execute("SELECT id, nom, description FROM Quiz").fetchall()
-    conn.close() # On oublie pas de fermer la connexion
-    liste_quiz_dict = [dict(quiz) for quiz in liste_quiz] # Conversion en liste de dictionnaire formelle pour passer au format json
-    print(liste_quiz_dict[0]) 
+    # Sécurité car ce code réinitialise la base de données
+    print("ATTENTION : Ce script va DÉTRUIRE et recréer la base de données.")
+    confirmation = input("Es-tu certain de vouloir faire ça (probablement pas) ? (oui/non)")
+    if confirmation.lower() == 'oui':
+        print("Ok on réinitialise.")
+        initialiser_db()
+        print("Base de données réinitialisée.")
+    else:
+        print("Opération annulée.")
+        sys.exit() # Quitte le script sans rien faire
+    

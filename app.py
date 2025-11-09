@@ -20,6 +20,8 @@ def obtenir_connexion_db():
     return conn
 
 
+# Session de jeu -------------------------------------------------------------------------------------------------------------------------------------
+
 # Premier EndPoint, on commence par choisisr un quiz
 @app.route('/api/selection_quiz', methods = ['GET'])
 def sélection_quiz():
@@ -38,6 +40,7 @@ def start_quiz(quiz_id):
     session.pop('quiz_score', None)
     session.pop('questions', None)
 
+    nb_questions = request.args.get('limite', default = 10, type = int)
     session['quiz_id'] = quiz_id
     session['quiz_index'] = 0
     session['quiz_score'] = 0
@@ -53,17 +56,18 @@ def start_quiz(quiz_id):
     nom_quiz = quiz["nom"]
     quiz_desc = quiz["description"]
 
-    liste_questions = conn.execute("SELECT id, catégorie, énoncé, points, réponse_correcte FROM Question WHERE quiz_id = ?", (quiz_id,)).fetchall() # On récupère les questions de ce quiz
+    liste_questions = conn.execute("SELECT * FROM Question WHERE quiz_id = ? ORDER BY RANDOM() LIMIT ?", (quiz_id, nb_questions)).fetchall() # On récupère les questions de ce quiz
     session['questions'] = [dict(question) for question in liste_questions]
 
     conn.close()
     return jsonify({
         "nom": nom_quiz,
-        "description": quiz_desc
+        "description": quiz_desc,
+        "nombre_questions": nb_questions
     })
 
 
-# Second EndPoint, pour afficher les questions -----------------------------------------
+# Second EndPoint, pour afficher les questions 
 @app.route('/api/quiz/question', methods = ['GET'])
 def get_question_suivante():
     if 'quiz_id' not in session or 'questions' not in session:
@@ -93,20 +97,20 @@ def get_question_suivante():
         "points": question_live['points']
     }
 
-    match question_live['catégorie']:
+    match question_live['type_question']:
         case 'qcm':
             conn = obtenir_connexion_db()
             liste_propositon = conn.execute("SELECT proposition FROM Proposition WHERE question_id = ?",(question_live["id"],)).fetchall()
-            question['catégorie'] = 'qcm'
+            question['type_question'] = 'qcm'
             question['propositions'] = [p['proposition'] for p in liste_propositon]
             conn.close()
         case 'simple':
-            question['catégorie'] = 'simple'
+            question['type_question'] = 'simple'
 
     return jsonify(question) # Renvoie de la question en convertissant le dictionnaire au format json
 
 
-# Second 'EndPoint' pour récupérer la réponse du joueur --------------------------------------
+# Second 'EndPoint' pour récupérer la réponse du joueur 
 @app.route('/api/reponse', methods = ['POST']) # Mauvaise utilisation de POST (réservé aux modifications), voir pour passer à GET
 def post_answer():
     if 'quiz_index' not in session or 'questions' not in session: # L'utilisateur veut envoyer une réponse sans avoir commencé le quiz
@@ -123,7 +127,7 @@ def post_answer():
     bonne_réponse = question['réponse_correcte'] 
     réponse_correcte = False
 
-    match question['catégorie']:
+    match question['type_question']:
         case 'qcm':
             réponse_correcte = int(bonne_réponse) == int(réponse_utilisateur)
         case 'simple':
@@ -141,7 +145,7 @@ def post_answer():
     })
 
 
-# 'EndPoint' final qui permet de réinitialiser l'état du quiz ---------------------------
+# 'EndPoint' final qui permet de réinitialiser l'état du quiz 
 @app.route('/api/reset', methods = ['GET'])
 def reset_quiz():
     session.pop('quiz_index', None) # On supprime les clés qui pourraient rester d'une session précédente
@@ -152,5 +156,85 @@ def reset_quiz():
     print("Quiz réinitialisée.")
     return jsonify({"message": "Quiz réinitialisé. Vous pouvez jouer !"})
 
+
+# EndPoint d'administration ------------------------------------------------------------------------------------------------
+# Création de Quiz depuis l'API
+@app.route('/api/admin/quiz', methods = ['POST'])
+def creer_quiz_admin():
+    data = request.get_json()
+    if not data or 'nom' not in data:
+        return jsonify({"erreur": "Le nom du quiz est manquant."}), 400
+    
+    nom_quiz = data.get('nom')
+    
+    try :
+        conn = obtenir_connexion_db()
+        cursor = conn.cursor()
+
+        cursor.execute("INSERT INTO Quiz (nom, description) VALUES (?, ?)",
+                       (nom_quiz, data.get('description', '')))
+        nouveau_quiz_id = cursor.lastrowid
+
+        conn.commit() # On valide la création du nouveau quiz
+        conn.close()
+
+        print(f"Nouveau quiz {nom_quiz} créé, son id: {nouveau_quiz_id}.")
+        return jsonify({
+            "id": nouveau_quiz_id,
+            "nom": nom_quiz
+        }), 201 # Signifie créé avec succès
+    
+    except Exception as e:
+        conn.close()
+        return jsonify({"erreur": f"Erreur dans la base de données: {e}"}), 500
+
+# Création de questions depuis l'API
+@app.route('/api/admin/questions', methods = ['POST'])
+def creer_question_admin():
+    data = request.get_json()
+    if not data or 'quiz_id' not in data or 'type_question' not in data or 'sujet_question' not in data or 'énoncé' not in data or 'réponse_correcte' not in data:
+        return jsonify({"erreur": "La question est incomplète."}), 400
+    
+    quiz_id = data.get('quiz_id')
+    type_question = data.get('type_question')
+    sujet_question = data.get('sujet_question')
+    énoncé = data.get('énoncé')
+    réponse = data.get('réponse_correcte')
+    points = data.get('points', 5) # Par défaut une question vaut 5 points 
+
+    if type_question ==  'qcm':
+        if 'propositions' not in data:
+            return jsonify({"erreur": "Il faut fournir les propositions pour un qcm."}), 400
+        liste_propositions = data.get('propositions')
+
+    try :
+        conn = obtenir_connexion_db()
+        cursor = conn.cursor()
+
+        cursor.execute("INSERT INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
+                       (quiz_id, type_question, sujet_question, énoncé, points, réponse))
+        nouvelle_question_id = cursor.lastrowid
+
+        if type_question ==  'qcm':
+            propositions = []
+            for i in range(len(liste_propositions)):
+                propositions.append((nouvelle_question_id, i+1, liste_propositions[i]))
+            cursor.executemany("INSERT INTO Proposition (question_id, index_choix, proposition) VALUES (?, ?, ?)",
+                                propositions)
+
+        conn.commit() # On valide la création du nouveau quiz
+        conn.close()
+
+        print(f"Nouvelle question {type_question} créée, son id: {nouvelle_question_id}.")
+        return jsonify({
+            "id": nouvelle_question_id
+        }), 201 # Signifie créé avec succès
+    
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"erreur": f"Erreur dans la base de données: {e}"}), 500
+
+# Fin du code, lancement du site -----------------------------------------------------------------------------------
 if __name__ == '__main__':
     app.run(debug = True, port = 5000)

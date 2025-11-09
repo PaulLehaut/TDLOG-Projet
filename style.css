@@ -54,3 +54,18 @@ hr /* Ligne de séparation */
 {
     background-color: #447db9;
 }
+
+#barre-état /* Concerne le score et le compteur de questions */
+{
+    display: flex;
+    justify-content: space-between; /* Aux deux extrémités */
+    align-items: center;
+    padding: 10px 0;
+}
+
+#compteur-question
+{
+    font-size: 0.9em;
+    font-style: italic;
+    color: #555;
+}
