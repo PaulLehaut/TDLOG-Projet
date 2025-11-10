@@ -21,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const réponse_question = document.getElementById('question-reponse');
 
     // On récupère l'URL des EndPoints
-    const api_url_liste_quiz = 'http://127.0.0.1:5000/api/selection_quiz';
-    const api_url_creer_quiz = 'http://127.0.0.1:5000/api/admin/quiz';
-    const api_url_creer_question = 'http://127.0.0.1:5000/api/admin/questions';
+    const api_url_liste_quiz = '/api/selection_quiz';
+    const api_url_creer_quiz = '/api/admin/quiz';
+    const api_url_creer_question = '/api/admin/questions';
 
     // On récupère les quiz qui existent
     async function charger_quiz()

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, session, request
+from flask import Flask, jsonify, session, request, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import os # On l'ajoute pour gérer les chemins
@@ -12,6 +12,24 @@ CORS(app, origins=['http://127.0.0.1:5500'], supports_credentials=True)
 # Chargement des questions
 dossier_db = os.path.dirname(os.path.abspath(__file__))
 chemin_db = os.path.join(dossier_db, 'data_base', 'quiz.db')
+
+# On indique où sont les fichiers statiques 
+dossier_projet = os.path.dirname(os.path.abspath(__file__))
+
+# Page utilisateur 
+@app.route('/')
+def route_utilisateur():
+    return send_from_directory(dossier_projet, 'index.html')
+
+# Page administrateur
+@app.route('/admin')
+def route_admin():
+    return send_from_directory(dossier_projet, 'admin.html')
+
+# Pour n'importe quel autre fichier
+@app.route('/<path:nom_fichier>')
+def route_fichiers(nom_fichier):
+    return send_from_directory(dossier_projet, nom_fichier)
 
 # On demande une connexion à la database
 def obtenir_connexion_db():
