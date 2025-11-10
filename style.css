@@ -1,0 +1,71 @@
+body
+{
+    font-family: Arial, sans-serif; /* Police */
+    background-color: bisque; /* Couleur du fond */
+    color: #333; /* Couleur du texte */
+    display: flex; /* Pour centrer plus facilement */
+    justify-content: center; /* Centrer horizontalemnt */
+    align-items: center; /* Centrer verticalement */
+    min-height: 100vh; /* Prend toute la hauteur de l'écran au moins */
+}
+
+#boîte_générale
+{
+    display: flex;
+    flex-direction: column; /* Pour un alignement vertical */
+
+    background-color: beige;
+    border-radius: 10px; /* Bords arrondis */
+    padding: 20px; /* DEEPL ????? */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* Ombre */
+    width: 500px; /* OMG PRALG ????????????? */
+}
+
+h1 /* Le titre */
+{
+    order: 1; /* Il vient en premier */
+    text-align: center;
+}
+
+#boîte_quiz
+{
+    order: 2; /* Le quiz vient en second */
+}
+
+hr /* Ligne de séparation */
+{
+    order: 3;
+}
+
+#boîte_réponse button /* Fait effet sur tous les boutons */
+{
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    background-color: azure;
+    color: rgb(87, 85, 85);   
+}
+
+#boîte_réponse button:hover /* Concerne uniquement le bouton survolé */ 
+{
+    background-color: #447db9;
+}
+
+#barre-état /* Concerne le score et le compteur de questions */
+{
+    display: flex;
+    justify-content: space-between; /* Aux deux extrémités */
+    align-items: center;
+    padding: 10px 0;
+}
+
+#compteur-question
+{
+    font-size: 0.9em;
+    font-style: italic;
+    color: #555;
+}
