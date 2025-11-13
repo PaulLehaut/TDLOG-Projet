@@ -19,11 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const prop3 = document.getElementById('prop-3');
     const prop4 = document.getElementById('prop-4');
     const réponse_question = document.getElementById('question-reponse');
+        // Création par IA
+    const generer_ia = document.getElementById('form-generer-ia');
+    const quiz_nom_ia = document.getElementById('ia-quiz-nom');
+    const quiz_desc_ia = document.getElementById('ia-quiz-desc');
+    const nb_quest_simples_ia = document.getElementById('ia-nb-simples');
+    const nb_quest_qcm_ia = document.getElementById('ia-nb-qcm');
+    const boutton_générer_ia = document.getElementById('btn-generer-ia');
 
     // On récupère l'URL des EndPoints
     const api_url_liste_quiz = '/api/selection_quiz';
     const api_url_creer_quiz = '/api/admin/quiz';
     const api_url_creer_question = '/api/admin/questions';
+    const api_url_generer_ia = '/api/admin/ia'
 
     // On récupère les quiz qui existent
     async function charger_quiz()
@@ -156,6 +164,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // S'occupe du formulaire généré par IA 
+    async function gestion_generer_ia(event)
+    {
+        event.preventDefault();
+
+        // On indique le chargement (car c'est long)
+        boutton_générer_ia.disabled = true;
+        boutton_générer_ia.textContent = 'Génération en cours, patience.'
+        afficher_alerte("Appel IA en cours, patience.", "info");
+
+        const data = {
+            nom: quiz_nom_ia.value,
+            desc: quiz_desc_ia.value,
+            nb_quest_simples: parseInt(nb_quest_simples_ia.value),
+            nb_quest_qcm: parseInt(nb_quest_qcm_ia.value)
+        };
+
+        try
+        {
+            const reponse = await fetch(api_url_generer_ia,
+                {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                }
+            );
+
+            const resultat = await reponse.json();
+
+            if (!reponse.ok)
+            {
+                throw new Error(resultat.erreur || "Erreur lors de la génération par IA.");
+            }
+
+            afficher_alerte(resultat.rep, 'success');
+            generer_ia.reset(); // On oublie pas de vider le formulaire
+            charger_quiz();
+        }
+        catch (erreur)
+        {
+            afficher_alerte(erreur.message, 'danger');
+        }
+        finally
+        {
+            boutton_générer_ia.disabled = false;
+            boutton_générer_ia.textContent = "Lancer la Génération IA";
+        }
+    }
+
     /** 
      * Affichage des messages de succès ou d'erreur
      * @param {string} message Le texte à afficher.
@@ -173,9 +231,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Soumission des formulaires
     creer_quiz.addEventListener('submit', gestion_creer_quiz);
     creer_question.addEventListener('submit', gestion_creer_question);
+    generer_ia.addEventListener('submit', gestion_generer_ia);
 
     // Affichage des champs pour un qcm
     type_question.addEventListener('change', afficher_champs_qcm);
+
+    
 
     // On démarre ----------------------------------------------------------------------------------
     charger_quiz();

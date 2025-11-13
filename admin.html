@@ -84,6 +84,42 @@
                 </div>
 
                 <button type="submit" class="btn btn-success">Ajouter la Question</button>
+                </form>
+            </section>
+            <section class="card mb-4">
+            <div class="card-header">
+                <h2>Générer un Quiz par IA</h2>
+            </div>
+            <form id="form-generer-ia" class="card-body">
+                
+                <div class="alert alert-info">
+                    <strong>Note :</strong> La génération peut prendre jusqu'à 30 secondes. 
+                    Le serveur sera indisponible pendant ce temps.
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="ia-quiz-nom" class="form-label">Sujet du Quiz :</label>
+                        <input type="text" id="ia-quiz-nom" class="form-control" placeholder="Ex: Histoire de France" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="ia-quiz-desc" class="form-label">Description :</label>
+                        <input type="text" id="ia-quiz-desc" class="form-control" placeholder="Ex: De Vercingétorix à nos jours...">
+                    </div>
+                </div>
+                
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label for="ia-nb-simples" class="form-label">Nombre de questions "simples" :</label>
+                        <input type="number" id="ia-nb-simples" class="form-control" value="2" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="ia-nb-qcm" class="form-label">Nombre de questions "QCM" :</label>
+                        <input type="number" id="ia-nb-qcm" class="form-control" value="3" required>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-generer-ia" class="btn btn-warning">Lancer la Génération IA</button>
             </form>
         </section>
         </div>

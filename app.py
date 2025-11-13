@@ -9,27 +9,17 @@ app.config['JSON_AS_ASCII'] = False
 app.secret_key = 'Paul-est-un-malade-mental'
 CORS(app, origins=['http://127.0.0.1:5500'], supports_credentials=True)
 
-# Chargement des questions
+# Chargement des questions et des scripts pour la database
 dossier_db = os.path.dirname(os.path.abspath(__file__))
 chemin_db = os.path.join(dossier_db, 'data_base', 'quiz.db')
+try:
+    from data_base.générer_json_ia import appeler_ia
+    from data_base.remplir_db import remplir_db
+except ImportError as e:
+    print(f"Erreur d'importation d'importation des fichiers: {e}.")
 
 # On indique où sont les fichiers statiques 
 dossier_projet = os.path.dirname(os.path.abspath(__file__))
-
-# Page utilisateur 
-@app.route('/')
-def route_utilisateur():
-    return send_from_directory(dossier_projet, 'index.html')
-
-# Page administrateur
-@app.route('/admin')
-def route_admin():
-    return send_from_directory(dossier_projet, 'admin.html')
-
-# Pour n'importe quel autre fichier
-@app.route('/<path:nom_fichier>')
-def route_fichiers(nom_fichier):
-    return send_from_directory(dossier_projet, nom_fichier)
 
 # On demande une connexion à la database
 def obtenir_connexion_db():
@@ -37,9 +27,9 @@ def obtenir_connexion_db():
     conn.row_factory = sqlite3.Row # Ligne essentielle qui transforme la database en dictionnaire !
     return conn
 
-
-# Session de jeu -------------------------------------------------------------------------------------------------------------------------------------
-
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#                                            Session de jeu 
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 # Premier EndPoint, on commence par choisisr un quiz
 @app.route('/api/selection_quiz', methods = ['GET'])
 def sélection_quiz():
@@ -85,7 +75,7 @@ def start_quiz(quiz_id):
     })
 
 
-# Second EndPoint, pour afficher les questions 
+# Troisième EndPoint, pour afficher les questions 
 @app.route('/api/quiz/question', methods = ['GET'])
 def get_question_suivante():
     if 'quiz_id' not in session or 'questions' not in session:
@@ -128,7 +118,7 @@ def get_question_suivante():
     return jsonify(question) # Renvoie de la question en convertissant le dictionnaire au format json
 
 
-# Second 'EndPoint' pour récupérer la réponse du joueur 
+# Quatrième 'EndPoint' pour récupérer la réponse du joueur 
 @app.route('/api/reponse', methods = ['POST']) # Mauvaise utilisation de POST (réservé aux modifications), voir pour passer à GET
 def post_answer():
     if 'quiz_index' not in session or 'questions' not in session: # L'utilisateur veut envoyer une réponse sans avoir commencé le quiz
@@ -174,8 +164,9 @@ def reset_quiz():
     print("Quiz réinitialisée.")
     return jsonify({"message": "Quiz réinitialisé. Vous pouvez jouer !"})
 
-
-# EndPoint d'administration ------------------------------------------------------------------------------------------------
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#                                                EndPoint d'administration 
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 # Création de Quiz depuis l'API
 @app.route('/api/admin/quiz', methods = ['POST'])
 def creer_quiz_admin():
@@ -189,8 +180,14 @@ def creer_quiz_admin():
         conn = obtenir_connexion_db()
         cursor = conn.cursor()
 
-        cursor.execute("INSERT INTO Quiz (nom, description) VALUES (?, ?)",
+        cursor.execute("INSERT OR IGNORE INTO Quiz (nom, description) VALUES (?, ?)",
                        (nom_quiz, data.get('description', '')))
+        
+        if cursor.rowcount == 0:
+            # Si True l'INSERT a été ignoré (doublon)
+            conn.close()
+            return jsonify({"erreur": f"Un quiz avec le nom '{nom_quiz}' existe déjà."}), 409 # 409 = Conflit
+        
         nouveau_quiz_id = cursor.lastrowid
 
         conn.commit() # On valide la création du nouveau quiz
@@ -223,14 +220,20 @@ def creer_question_admin():
     if type_question ==  'qcm':
         if 'propositions' not in data:
             return jsonify({"erreur": "Il faut fournir les propositions pour un qcm."}), 400
+
         liste_propositions = data.get('propositions')
 
     try :
         conn = obtenir_connexion_db()
         cursor = conn.cursor()
 
-        cursor.execute("INSERT INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
+        cursor.execute("INSERT OR IGNORE INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
                        (quiz_id, type_question, sujet_question, énoncé, points, réponse))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({"erreur": f"Une question avec l'énoncé '{énoncé}' existe déjà."}), 409 
+        
         nouvelle_question_id = cursor.lastrowid
 
         if type_question ==  'qcm':
@@ -252,6 +255,58 @@ def creer_question_admin():
         conn.rollback()
         conn.close()
         return jsonify({"erreur": f"Erreur dans la base de données: {e}"}), 500
+    
+# Création d'un quiz avec l'IA depuis l'API
+@app.route('/api/admin/ia', methods = ['POST'])
+def creer_quiz_ia():
+    data = request.get_json()
+
+    if not data or 'nom' not in data:
+        return jsonify({"erreur": "Nom du quiz manquant."}), 400
+
+
+    quiz_nom = data.get('nom')
+    quiz_desc = data.get('desc', "")
+    nb_questions_simples = data.get('nb_questions_simples', 2)
+    nb_questions_qcm = data.get('nb_questions_qcm', 3)
+
+    try:
+
+        appeler_ia(quiz_nom, quiz_desc, nb_questions_simples, nb_questions_qcm)
+        
+        json_file_path = 'données_db.json' 
+        if not os.path.exists(json_file_path): # On vérifie que le fichier est bien créé
+            return jsonify({"Erreur": "L'IA a échoué à créer le fichier JSON."}), 500
+        
+        with open(json_file_path, 'r', encoding = 'utf-8') as file:
+            remplir_db(file)
+        
+        print(f"Nouveau Quiz suggéré avec succès.")
+        return jsonify({
+            "rep": "Nouveau Quiz suggéré avec succès !"
+        }), 201 # Signifie créé avec succès
+
+    except Exception as e:
+        return jsonify({"erreur": f"Erreur dans la création du Quiz: {e}"}), 500
+    
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#                                               Chemin généraux
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+# Page utilisateur 
+@app.route('/')
+def route_utilisateur():
+    return send_from_directory(dossier_projet, 'index.html')
+
+# Page administrateur
+@app.route('/admin')
+def route_admin():
+    return send_from_directory(dossier_projet, 'admin.html')
+
+# Pour n'importe quel autre fichier
+@app.route('/<path:nom_fichier>')
+def route_fichiers(nom_fichier):
+    return send_from_directory(dossier_projet, nom_fichier)
 
 # Fin du code, lancement du site -----------------------------------------------------------------------------------
 if __name__ == '__main__':

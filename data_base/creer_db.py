@@ -20,12 +20,12 @@ def initialiser_db():
     cursor.execute("""
     CREATE TABLE Quiz (
                    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                   nom TEXT NON NULL,
+                   nom TEXT NON NULL UNIQUE,
                    description TEXT
                    );
     """) 
     # id INTEGER (id entier) PRIMARY KEY (clé primaire, unique pour chaque quiz) AUTOINCREMENT (s'incrémente automatiquement)
-    # nom TEXT NON NULL (chaque quiz a un nom qui ne peut pas être nul)
+    # nom TEXT NON NULL (chaque quiz a un nom qui ne peut pas être nul), on rajoute UNIQUE pour ne pas dupliquer les quiz
     # description TEXT (description optionelle du quiz)
 
     # Seconde table de questions 
@@ -35,7 +35,7 @@ def initialiser_db():
                    quiz_id INTEGER NOT NULL,
                    type_question TEXT NOT NULL,
                    sujet_question TEXT NOT NULL,
-                   énoncé TEXT NOT NULL,
+                   énoncé TEXT NOT NULL UNIQUE,
                    points INTEGER NOT NULL,
                    réponse_correcte TEXT NOT NULL,
                    FOREIGN KEY (quiz_id) REFERENCES Quiz (id)
