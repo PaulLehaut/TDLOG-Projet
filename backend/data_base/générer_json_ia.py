@@ -72,7 +72,7 @@ def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
             json_clean = json_clean[start_index : end_index + 1]
         # Fin du nettoyage
 
-        json_data = json.loads(json_brut)
+        json_data = json.loads(json_clean)
 
         with open('données_db.json', 'w', encoding='utf-8') as f:
             json.dump(json_data, f, ensure_ascii=False, indent=4)

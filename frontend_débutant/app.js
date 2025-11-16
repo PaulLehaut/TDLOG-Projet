@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const boîte_choix_nb_questions = document.getElementById('choix-nombre-questions');
 
     // On récupère l'URL des EndPoints
-    const api_url_sélection_quiz = 'http://127.0.0.1:5000/api/selection_quiz'
+    const api_url_sélection_quiz = '/api/selection_quiz'
     const api_url_démarrage_quiz = '/api/quiz/start/'
     const api_url_afficher_question_suivante = '/api/quiz/question';
     const api_url_reset = '/api/reset';
