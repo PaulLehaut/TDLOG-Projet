@@ -14,7 +14,7 @@ function App()
   const [liste_quiz, éditerListeQuiz] = useState([]); // On commence par défaut par une liste de quiz vide
 
   // Même chose état_app est la variable et éditerEtat la fonction
-  const [état_app, éditerEtat] = useState("Chargement des quiz, veuillez patienter.");
+  const [état_app, éditerEtat] = useState("Chargement du quiz");
 
   // Et ainsi de suite
   const [nb_questions, éditerNbQuestions] = useState(10); // 10 par défaut
@@ -204,7 +204,7 @@ function App()
     if (état_app === 'Sélection')
     {
       return (
-        <div>
+        <>
           <h1>Choisissez un Quiz</h1>
           <div className='quiz-list'>
             {liste_quiz.map(quiz => (
@@ -225,20 +225,20 @@ function App()
             max = '50'
             />
           </div>
-        </div>
+        </>
       );
     }
 
     if (état_app === 'Intro' && quiz_live)
     {
       return (
-        <div>
+        <>
           <h1>{quiz_live.nom}</h1>
           <p className='quiz-description'>{quiz_live.description}</p>
           <button className='start-button' onClick={démarrerQuiz}>
             C'est parti !
           </button>
-        </div>
+        </>
       );
     }
 
@@ -259,13 +259,13 @@ function App()
     if (état_app === 'Quiz terminé' && quiz_live)
     {
       return (
-        <div>
+        <>
           <h1>Quiz Terminé !</h1>
           <h2>Votre score final est de: {quiz_live.score_final} / {quiz_live.total_final}</h2>
           <button className='start-button' onClick={resetQuiz}>
             Retour à la sélection de Quiz !
           </button>
-        </div>
+        </>
       );
     }
 
