@@ -1,166 +1,65 @@
+/* Fichier: frontend/src/App.css */
+
+/* Style de base pour toute l'application */
 body {
-  background-color: #282c34;
-  color: white;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  padding: 20px;
   margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background-color: #282c34; /* Fond sombre global */
+  color: white;
 }
 
-.App-container {
-  max-width: 800px; 
-  margin: 20px auto;
+/* Style de la barre de navigation */
+.main-nav {
+  background-color: #20232a;
+  padding: 1rem;
   text-align: center;
-}
-
-/* L'input pour le nombre de questions */
-.nbQuestions-container {
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #3a3f4a; 
-  border-radius: 8px;
-  font-size: 1.1em;
-  color: #ccc;
-  text-align: center;
-}
-
-.nbQuestions-container input {
-  width: 70px;
-  padding: 8px;
-  margin-left: 10px;
-  font-size: 1em;
-  border-radius: 5px;
-  border: none;
-  background-color: #4a4a58;
-  color: white;
-  border: 1px solid #666;
-}
-
-/* La liste des quiz (en grille) */
-.quiz-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 15px; 
-}
-
-/* Les boutons de quiz */
-.quiz-bouton {
-  background-color: #4a4a58;
-  border: none;
-  border-radius: 8px;
-  padding: 20px;
-  color: white;
-  text-align: left; /* On aligne le texte du bouton à gauche */
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.2s;
-}
-
-.quiz-bouton:hover {
-  background-color: #5a5a6a;
-  transform: translateY(-2px);
-}
-
-.quiz-bouton h3 { margin: 0 0 5px 0; }
-.quiz-bouton p { margin: 0; color: #ccc; }
-
-
-/* --- Écran d'Intro --- */
-.quiz-description {
-  font-size: 1.2em;
-  color: #ccc;
-  margin-bottom: 30px;
-}
-.start-button {
-  background-color: #28a745;
-  color: white;
-  font-size: 1.5em;
-  padding: 15px 30px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.start-button:hover { background-color: #218838; }
-
-/* --- Écran de Jeu --- */
-.quiz-game {
-  background-color: #3a3f4a;
-  padding: 25px;
-  border-radius: 10px;
-}
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  font-size: 1.2em;
-  font-weight: bold;
+  border-bottom: 1px solid #444;
   margin-bottom: 20px;
 }
-.score { color: #61dafb; }
-.compteur { color: #aaa; }
-.question-enonce {
-  font-size: 2em;
-  margin-bottom: 30px;
-}
 
-/* Styles pour les boutons QCM */
-.qcm-options {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 colonnes */
-  gap: 15px;
-}
-.qcm-bouton {
-  background-color: #007bff;
-  color: white;
-  padding: 15px;
-  font-size: 1.1em;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.qcm-bouton:hover { background-color: #0056b3; }
-.qcm-bouton:disabled {
-  background-color: #555;
-  cursor: not-allowed;
-}
-
-/* Styles pour la réponse simple */
-.simple-form {
-  display: flex;
-  gap: 10px;
-}
-.simple-form input {
-  flex-grow: 1; /* L'input prend toute la place */
-  padding: 15px;
-  font-size: 1.1em;
-  border-radius: 8px;
-  border: none;
-}
-.simple-form button {
-  background-color: #007bff;
-  color: white;
-  padding: 15px 20px;
-  font-size: 1.1em;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.simple-form button:hover { background-color: #0056b3; }
-.simple-form button:disabled { background-color: #555; }
-
-
-/* Styles pour le Feedback */
-.feedback {
-  margin-top: 20px;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 1.2em;
+.main-nav a {
+  color: #61dafb; /* Bleu React */
+  text-decoration: none;
+  font-size: 1.2rem;
+  margin: 0 15px;
   font-weight: bold;
 }
-.feedback.correct {
-  background-color: #28a745; /* Vert */
+
+.main-nav a:hover {
   color: white;
+  text-decoration: underline;
 }
-.feedback.incorrect {
-  background-color: #dc3545; /* Rouge */
+
+/* Notification Flottante (Toast) */
+.global-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 15px 25px;
+  border-radius: 8px;
   color: white;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 1000; /* Pour être au-dessus de tout */
+  animation: slideIn 0.5s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.global-notification.success { background-color: #28a745; }
+.global-notification.danger { background-color: #dc3545; }
+
+.global-notification button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2em;
+  cursor: pointer;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }

@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, session, request, send_from_directory
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import sqlite3
 import os # On l'ajoute pour gérer les chemins
 
@@ -8,6 +9,7 @@ app.config['JSON_AS_ASCII'] = False
 
 app.secret_key = 'Paul-est-un-malade-mental'
 CORS(app, origins=['http://127.0.0.1:5500'], supports_credentials=True)
+socketio = SocketIO(app, cors_allowed_origins = "*", async_mode = 'threading')
 
 # Chargement des questions et des scripts pour la database
 dossier_db = os.path.dirname(os.path.abspath(__file__))
@@ -257,37 +259,10 @@ def creer_question_admin():
         return jsonify({"erreur": f"Erreur dans la base de données: {e}"}), 500
     
 # Création d'un quiz avec l'IA depuis l'API
-@app.route('/api/admin/ia', methods = ['POST'])
-def creer_quiz_ia():
-    data = request.get_json()
-
-    if not data or 'nom' not in data:
-        return jsonify({"erreur": "Nom du quiz manquant."}), 400
-
-
-    quiz_nom = data.get('nom')
-    quiz_desc = data.get('desc', "")
-    nb_questions_simples = data.get('nb_questions_simples', 2)
-    nb_questions_qcm = data.get('nb_questions_qcm', 3)
-
-    try:
-
-        appeler_ia(quiz_nom, quiz_desc, nb_questions_simples, nb_questions_qcm)
-        
-        json_file_path = 'données_db.json' 
-        if not os.path.exists(json_file_path): # On vérifie que le fichier est bien créé
-            return jsonify({"Erreur": "L'IA a échoué à créer le fichier JSON."}), 500
-        
-        with open(json_file_path, 'r', encoding = 'utf-8') as file:
-            remplir_db(file)
-        
-        print(f"Nouveau Quiz suggéré avec succès.")
-        return jsonify({
-            "rep": "Nouveau Quiz suggéré avec succès !"
-        }), 201 # Signifie créé avec succès
-
-    except Exception as e:
-        return jsonify({"erreur": f"Erreur dans la création du Quiz: {e}"}), 500
+@socketio.on('demande_generation_ia')
+def creer_quiz_ia(data):
+    print(f'Demande de création du quiz {data['nom']} par IA.')
+    socketio.start_background_task(creation_ia, data)
     
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                               Chemin généraux
@@ -308,6 +283,43 @@ def route_admin():
 def route_fichiers(nom_fichier):
     return send_from_directory(dossier_projet, nom_fichier)
 
+
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#                                         Fonction d'arrière plan
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+# Création du quiz par l'IA
+def creation_ia(data):
+    try :
+        print('Démarragge de la génération.')
+
+        quiz_nom = data.get('nom')
+        quiz_desc = data.get('desc', "")
+        nb_questions_simples = data.get('nb_questions_simples', 2)
+        nb_questions_qcm = data.get('nb_questions_qcm', 3)
+        
+        data = appeler_ia(quiz_nom, quiz_desc, nb_questions_simples, nb_questions_qcm)
+
+        if not data:
+            raise Exception("L'IA n'a rien envoyé.")
+        
+        quiz_id = remplir_db(data, chemin_db)
+        
+        print(f"Nouveau Quiz suggéré avec succès.")
+        socketio.emit('ia_terminee', {'message': f"Quiz {quiz_nom} généré avec succès !"})
+    
+    except Exception as e:
+        print(f'Erreur: {e}')
+        socketio.emit('ia_erreur', {'message': str(e)})
+
+
 # Fin du code, lancement du site -----------------------------------------------------------------------------------
+
+# Test pour vérifier que le temps réel fonctionne
+@socketio.on('connect')
+def gérer_connexion():
+    print(f'Nouvelle connexion WebSocket: {request.sid}')
+    emit('message_serveur', {'data': 'Bienvenue sur le serveur !'})
+
 if __name__ == '__main__':
-    app.run(debug = True, port = 5000)
+    socketio.run(app, debug=True, port=5000)

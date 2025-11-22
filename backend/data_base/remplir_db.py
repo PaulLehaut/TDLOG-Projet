@@ -3,18 +3,14 @@ import os
 import sys
 import json
 
-dossier_db = 'data_base'
-nom_fichier = 'quiz.db'
-data_base_nom = os.path.join(dossier_db, nom_fichier)
-os.makedirs(dossier_db, exist_ok = True)
 
-def remplir_db(file):
 
-    conn = sqlite3.connect(data_base_nom) 
+def remplir_db(data, db_path):
+
+    conn = sqlite3.connect(db_path) 
     cursor = conn.cursor()
 
     try:
-        data = json.load(file)
         for quiz in data:
 
             cursor.execute("INSERT OR IGNORE INTO Quiz (nom, description) VALUES (?, ?)",
@@ -49,10 +45,11 @@ def remplir_db(file):
                            propositions)
                     
         conn.commit()
-        
+        return quiz_id
     except Exception as e:
         print(f"Erreur lors de la création des quiz: {e}.")
         conn.rollback()
+        raise e
     finally:
         conn.close()
 

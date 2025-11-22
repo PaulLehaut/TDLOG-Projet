@@ -74,9 +74,9 @@ def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
 
         json_data = json.loads(json_clean)
 
-        with open('données_db.json', 'w', encoding='utf-8') as f:
-            json.dump(json_data, f, ensure_ascii=False, indent=4)
-        print("Fichier données_db.json mis à jour avec succès !")
+        
+        print("Données générées avec succès !")
+        return json_data
 
     except Exception as e:
         print(f"Erreur lors de la génération par l'IA : {e}.")
