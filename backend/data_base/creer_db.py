@@ -57,6 +57,15 @@ def initialiser_db():
                    );
     """)
 
+    cursor.execute("""
+    CREATE TABLE Signalement (
+                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                   question_id INTEGER NOT NULL,
+                   message TEXT,
+                   FOREIGN KEY (question_id) REFERENCES Question (id)
+                   );
+    """)
+
     print("Tables bien créées !")
 
     try: # Insertion des données de quiz

@@ -118,17 +118,18 @@ body {
 }
 
 /* Styles pour les boutons QCM */
-.qcm-options {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 colonnes */
-  gap: 15px;
+.qcm-propositions {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 15px;                      
+    margin-top: 20px;
 }
 .qcm-bouton {
   background-color: #007bff;
   color: white;
   padding: 15px;
   font-size: 1.1em;
-  border: none;
+  border: 1px solid #ddd;
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s;

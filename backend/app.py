@@ -104,7 +104,7 @@ def get_question_suivante():
     question = {
         "index": index_live,
         "énoncé": question_live['énoncé'],
-        "points": question_live['points']
+        "points": question_live['points'],
     }
 
     match question_live['type_question']:
@@ -113,9 +113,12 @@ def get_question_suivante():
             liste_propositon = conn.execute("SELECT proposition FROM Proposition WHERE question_id = ?",(question_live["id"],)).fetchall()
             question['type_question'] = 'qcm'
             question['propositions'] = [p['proposition'] for p in liste_propositon]
+            question['réponse_correcte'] = liste_propositon[int(question_live['réponse_correcte'])-1]['proposition']
             conn.close()
+
         case 'simple':
             question['type_question'] = 'simple'
+            question['réponse_correcte'] = question_live['réponse_correcte']
 
     return jsonify(question) # Renvoie de la question en convertissant le dictionnaire au format json
 
@@ -165,6 +168,33 @@ def reset_quiz():
 
     print("Quiz réinitialisée.")
     return jsonify({"message": "Quiz réinitialisé. Vous pouvez jouer !"})
+
+
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#                                                Interaction des utilisateurs 
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# Signalement d'une question par un joueur 
+@app.route('/api/signalement', methods = ['POST'])
+def signaler_question():
+    data = request.get_json()
+    if not data or 'question_id' in data:
+        return jsonify({'erreur': 'Données manquantes'}), 400
+    
+    try: 
+        conn = obtenir_connexion_db()
+
+        conn.execute("INSERT INTO Signalement (question_id, message) VALUES (?, ?)",
+                     (data["question_id"], data.get('raison', 'Pas de raison')))
+        conn.commit()
+        conn.close()
+
+        return jsonify({"message": "Signalement enregistré, la partie va reprendre."}), 201
+    
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"erreur": str(e)}), 500
+
 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                                EndPoint d'administration 
@@ -263,7 +293,56 @@ def creer_question_admin():
 def creer_quiz_ia(data):
     print(f'Demande de création du quiz {data['nom']} par IA.')
     socketio.start_background_task(creation_ia, data)
+
+# Affichage des questions signalées 
+@app.route('/api/admin/signalement', methods = ['GET'])
+def afficher_signelements():
+    try: 
+        conn = obtenir_connexion_db()
+        data = conn.execute(""" 
+        SELECT s.id, s.message, q.id as question_id, q.énoncé, q.type_question
+        CASE WHEN q.type_question = 'qcm' THEN p.proposition ELSE q.réponse_correcte END as réponse
+        FROM Signalement s JOIN Question q ON s.question_id = q.id
+        LEFT JOIN Proposition p ON q.id = p.question_id AND q.réponse_correcte = p.index_choix
+        """).fetchall()  
+        signalements = [dict(s) for s in data]
+        conn.close()
+        return jsonify(signalements)
     
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"erreur": f"Erreur dans l'affichage des signalements: {e}."})
+
+# Supprimer une question signalée
+@app.route('/api/admin/question/<int:signalement_id>', methods = ['DELETE'])
+def supprimer_question(question_id):
+    try: 
+        conn = obtenir_connexion_db()
+        conn.execute("DELETE FROM Signalement WHERE question_id = ?", (question_id,))
+        conn.execute("DELETE FROM Proposition WHERE question_id = ?", (question_id,))
+        conn.execute("DELETE FROM Question WHERE id = ?", (question_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message" : "Question supprimée avec succès."})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"erreur": f'Erreur dans la suppression de la question {e}.'}), 500
+
+# Supprimer simplement un signalement 
+@app.route('/api/admin/signalement/<int:signalement_id>', methods = ['DELETE'])
+def supprimer_signalement(question_id):
+    try: 
+        conn = obtenir_connexion_db()
+        conn.execute("DELETE FROM Signalement WHERE question_id = ?", (question_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message" : "Signalement supprimé avec succès."})
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"erreur": f'Erreur dans la suppression du signalement {e}.'}), 500
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                               Chemin généraux
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

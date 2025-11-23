@@ -7,13 +7,14 @@ import './AdminPanel.css';
 
 const ETATS = {
   CHARGEMENT: 'Chargement du quiz',
-  SELECTION: 'Sélection',
+  ADMINISTRATION: "Création d'un quiz, d'une question",
 };
 
 const ONGLETS = {
     CREER_QUIZ: 'Création du quiz',
     AJOUTER_QUESTION: 'Ajouter une question',
-    IA: 'IA'
+    IA: 'IA',
+    SIGNALEMENT: 'Signalement'
 }
 
 function AdminPanel({socket})
@@ -48,6 +49,9 @@ function AdminPanel({socket})
     const [nbQuestSimplesIa, editerNbQuestionsSimplesIA] = useState(2);
     const [nbQuestQcmIa, editerNbQuestionsQcmIA] = useState(3);
 
+    // Pour les signalements 
+    const [listeSignalements, editerListeSignalements] = useState([]);
+
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     //                       Fonction utilitaire et effets
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -63,25 +67,60 @@ function AdminPanel({socket})
                 throw new Error(data.erreur || "Erreur réseau.");
 
             editerListeQuiz(data);
-            editerEtat(ETATS.SELECTION);
+            editerEtat(ETATS.ADMINISTRATION);
         }
         catch (erreur)
         {
             console.error(erreur);
             editerAlerte({message: "Erreur de chargement des quiz.", type: 'danger'});
-            editerEtat(ETATS.SELECTION);
+            editerEtat(ETATS.ADMINISTRATION);
         }
     }
+
+    async function chargerSignalement()
+   {
+        try
+        {
+            const réponse = await fetch('api/admin/signalements');
+
+            if (!réponse.ok)
+                throw new Error(data.erreur || "Erreur réseau.");
+
+            const data = await réponse.json();
+            editerListeSignalements(data);
+            editerEtat(ETATS.SIGNALEMENT);
+        }
+        catch (erreur)
+        {
+            console.error(erreur);
+            editerAlerte({message: "Erreur de chargement des signalements.", type: 'danger'});
+            editerEtat(ETATS.ADMINISTRATION);
+        }
+   }
 
     useEffect(() =>
     {
         editerEtat(ETATS.CHARGEMENT);
-        chargerQuiz();
-    }, []);
+        
+        if (ongletActif === ONGLETS.AJOUTER_QUESTION)
+        {
+            chargerQuiz();
+        }
+
+        if (ongletActif === ONGLETS.SIGNALEMENT)
+        {
+            chargerSignalement();
+        }
+
+        else 
+        {
+            editerEtat(ETATS.ADMINISTRATION)
+        }
+    }, [ongletActif]);
 
 
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    //              Les fonctions pour les actions de l'utilisateur
+    //             Les fonctions pour les actions de l'administrateur
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""    
     /** 
      * Quand l'administrateur soumet un nouveau quiz
@@ -116,7 +155,7 @@ function AdminPanel({socket})
             editerNvQuizNom('');
             editerNvQuizDesc('');
             editerNbQuestionsQcmIA(3);
-            editerEtat(ETATS.SELECTION);
+            editerEtat(ETATS.ADMINISTRATION);
         }
         catch (erreur)
         {
@@ -182,7 +221,7 @@ function AdminPanel({socket})
             editerNvQuestProp2('');
             editerNvQuestProp3('');
             editerNvQuestProp4('');
-            editerEtat(ETATS.SELECTION);
+            editerEtat(ETATS.ADMINISTRATION);
         }
         catch (erreur)
         {
@@ -220,6 +259,43 @@ function AdminPanel({socket})
         nbQuestQcmIa(3);
    }
 
+   /**
+    * Gestion des signalements
+    * @param {int} signalement_id Le signalement à considérer
+    * @param {int} question_id La question signalée
+    */
+   async function supprimerQuestion(question_id)
+   {
+        if (!window.confirm("Voulez-vous vraiment supprimer cette question ?")) return;
+        try
+        {
+            await fetch(`/api/admin/question/${question_id}`, {method: 'DELETE', credentials: 'include'});
+            chargerSignalement();
+            editerAlerte({message: 'Question supprimée avec succès !', type : 'success'});
+        }
+        catch (erreur)
+        {
+            console.error(erreur);
+            editerAlerte({message: erreur.message, type : 'danger'});
+        }
+   }
+
+   async function supprimerSignalement(signalement_id)
+   {
+        if (!window.confirm("Voulez-vous vraiment supprimer ce signalement ?")) return;
+        try
+        {
+            await fetch(`/api/admin/signalement/${signalement_id}`, {method: 'DELETE', credentials: 'include'});
+            chargerSignalement();
+            editerAlerte({message: 'Signalement supprimé avec succès !', type : 'success'});
+        }
+        catch (erreur)
+        {
+            console.error(erreur);
+            editerAlerte({message: erreur.message, type : 'danger'});
+        }
+   }
+
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     //                          Affichage 
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -235,6 +311,7 @@ function AdminPanel({socket})
                 </div>
             );
         }
+        
         return (
             <div className='admin-container'>
 
@@ -480,6 +557,27 @@ function AdminPanel({socket})
                             </form>
                         </section>
                     )}
+
+                    {/* Gestion des signalements */}
+                    {ongletActif === ONGLETS.SIGNALEMENT && (
+                        <div className='card'>
+
+                            <div className='card-header'><h2>Signalements</h2></div>
+                            
+                            <div className='card-body'>
+                                {listeSignalements.length === 0 ? <p>Aucun signalement à traiter.</p> : (
+                                    <div className='signalements-list'>
+                                        {listeSignalements.map(signalement => (
+                                            <button key = {signalement.id} className='signalement-bouton' onClick={() => afficherSignalement(signalement.id, signalement.message, signalement.question_id, signalement.énoncé, signalement.type_question, signalement.réponse)}>
+                                                <h3>{signalement.message}</h3>
+                                                <p>{signalement.énoncé}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -487,5 +585,12 @@ function AdminPanel({socket})
 
     return renderContent();
 }
+
+//"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+//                          Composant secondaire
+//"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+function GestionSignalement({})
+
+
 
 export default AdminPanel; // Exportation du composant

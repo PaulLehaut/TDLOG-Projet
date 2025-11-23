@@ -75,6 +75,7 @@ function QuizApp()
 
   /** 
    * Quand l'utilisateur choisit un quiz
+   * @param {int} quiz_id Le quiz sélectionné
   */
   async function gérerQuizSélectionné(quiz_id)
   {
@@ -312,12 +313,38 @@ function QuizGame({question, score, nbQuestions, feedback, onReponse, etat_jeu})
   }
 
   const validation_en_cours = (etat_jeu === ETATS.VALIDATION);
+
+  // Gestion d'un signalement
+  async function gérerSignalement()
+  {
+    const raison = prompt("Pourquoi signalez-vous cette question ?")
+    if (!raison) return; // Il n'y a pas de raison fournis donc on ne fait pas remonter le signalement
+
+    try 
+    {
+      await fetch('api/signalement',
+        {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({question_id: question.id, raison: raison}),
+          credentials: 'include'
+        }
+      );
+      alert("Merci ! Le signalement a été transmis aux administrateurs.")
+    }
+    catch (e)
+    {
+      console.error(e);
+      alert("Erreur lors de l'envoi du signalement.")
+    }
+  }
+
   return (
     <div className='quiz-game'>
       {/* Barre de statut */}
       <div className='statut-bar'>
         <div className='score'>Score: {score}</div>
-        <div className='compteur'>Question {question.index + 1}/ {nbQuestions}</div>
+        <div className='compteur'>Question {question.index + 1}/{nbQuestions}</div>
       </div>
       {/* La question */}
       <h2 className='question-enonce'>{question.énoncé}</h2>
@@ -357,9 +384,13 @@ function QuizGame({question, score, nbQuestions, feedback, onReponse, etat_jeu})
       {/* Le feedback (s'il existe) */}
       {feedback && (
         <div className={`feedback ${feedback.correct ? 'correct' : 'incorrect'}`}>
-          {feedback.message}
+          <p>{feedback.message}</p>
+          <p>{feedback.correct ? '' : `La bonne réponse: ${question.réponse_correcte}`}</p>
         </div>
       )}
+      <div className='signalement button'>
+        <button onClick = {() => gérerSignalement}>Signaler une erreur</button>
+      </div>
     </div>
   );
 }
