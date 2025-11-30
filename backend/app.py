@@ -1,14 +1,17 @@
 from flask import Flask, jsonify, session, request, send_from_directory
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import sqlite3
 import os # On l'ajoute pour gérer les chemins
+from thefuzz import fuzz # Pour gérer les réponses simples
+import random
+import string
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 
 app.secret_key = 'Paul-est-un-malade-mental'
-CORS(app, origins=['http://127.0.0.1:5500'], supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 socketio = SocketIO(app, cors_allowed_origins = "*", async_mode = 'threading')
 
 # Chargement des questions et des scripts pour la database
@@ -28,6 +31,9 @@ def obtenir_connexion_db():
     conn = sqlite3.connect(chemin_db)
     conn.row_factory = sqlite3.Row # Ligne essentielle qui transforme la database en dictionnaire !
     return conn
+
+# Stockage des parties en cours
+ROOMS = {}
 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                            Session de jeu 
@@ -105,6 +111,7 @@ def get_question_suivante():
         "index": index_live,
         "énoncé": question_live['énoncé'],
         "points": question_live['points'],
+        "id": question_live['id'],
     }
 
     match question_live['type_question']:
@@ -143,8 +150,12 @@ def post_answer():
     match question['type_question']:
         case 'qcm':
             réponse_correcte = int(bonne_réponse) == int(réponse_utilisateur)
+
         case 'simple':
-            réponse_correcte = réponse_utilisateur.strip().lower() == bonne_réponse.strip().lower()
+
+            score = fuzz.token_sort_ratio(réponse_utilisateur, bonne_réponse)
+            print(f"Comparaison : '{réponse_utilisateur}' et '{bonne_réponse}' => Score: {score}/100")
+            réponse_correcte = score >= 80 # On valide si la ressemblance est supérieure à 80%
 
     if réponse_correcte:
         session['quiz_score'] += question['points']
@@ -171,13 +182,71 @@ def reset_quiz():
 
 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#                                                Gestion du multijoueur
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+# Génération d'un code unique 
+def generer_code_room():
+    while True:
+        code = ''.join(random.choices(string.ascii_uppercase, k=4))
+        if code not in ROOMS: # On a trouvé un nouveau code
+            return code
+
+@socketio.on('creer_room')
+def creer_room(data):
+    room_code = generer_code_room()
+    quiz_id = data['quiz_id']
+    pseudo = data['pseudo']
+    nb_questions = data['nb_questions']
+
+    conn = obtenir_connexion_db()
+    questions_db = conn.execute("SELECT * FROM Question WHERE quiz_id = ? ORDER BY RANDOM() LIMIT ?", (quiz_id, nb_questions)).fetchall()
+    liste_questions = []
+    for quest in questions_db: 
+        quest_dict = dict(quest)
+        if quest_dict['type_question'] == 'qcm':
+            props_db = conn.execute("SELECT proposition FROM Proposition WHERE question_id	 = ? ", (quest_dict['id'],)).fetchall()
+            quest_dict['proposition'] = [props['proposition'] for props in props_db]
+        liste_questions.append(quest_dict)
+    conn.close()
+    ROOMS[room_code] = {
+        'host': request.sid,
+        'quiz_id': quiz_id,
+        'questions': liste_questions,
+        'current_index': 0,
+        'etat': 'LOBBY',
+        'joueurs': {}
+    }
+    ROOMS[room_code]['joueurs'][request.sid] = {'pseudo': pseudo, 'score': 0}
+    join_room(room_code)
+    print(f'room {room_code} créée par {pseudo}.')
+    emit('room_creee', {'code': room_code, 'joueurs': [pseudo]})
+
+@socketio.on('rejoindre_room')
+def rejoindre_room(data):
+    room_code = data['code'].upper()
+    pseudo = data['pseudo']
+
+    if room_code not in ROOMS:
+        emit('erreur_connexion', {'message': "room introuvable."})
+        return
+    if ROOMS[room_code]['etat'] != 'LOBBY':
+        emit('erreur_connexion', {'message': "Partie déjà en cours."})
+        return
+    
+    ROOMS[room_code]['joueurs'][request.sid] = {'pseudo': pseudo, 'score': 0}
+    join_room(room_code)
+    print(f'{pseudo} a rejoint la room {room_code}.')
+
+    liste_pseudos = [joueur['pseudo'] for joueur in ROOMS[room_code]['joueurs'].values()]
+    socketio.emit('maj_lobby', {'joueurs': liste_pseudos}, room = room_code)
+# """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                                Interaction des utilisateurs 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 # Signalement d'une question par un joueur 
 @app.route('/api/signalement', methods = ['POST'])
 def signaler_question():
     data = request.get_json()
-    if not data or 'question_id' in data:
+    if not data or 'question_id' not in data:
         return jsonify({'erreur': 'Données manquantes'}), 400
     
     try: 
@@ -295,12 +364,12 @@ def creer_quiz_ia(data):
     socketio.start_background_task(creation_ia, data)
 
 # Affichage des questions signalées 
-@app.route('/api/admin/signalement', methods = ['GET'])
+@app.route('/api/admin/signalements', methods = ['GET'])
 def afficher_signelements():
     try: 
         conn = obtenir_connexion_db()
         data = conn.execute(""" 
-        SELECT s.id, s.message, q.id as question_id, q.énoncé, q.type_question
+        SELECT s.id, s.message, q.id as question_id, q.énoncé, q.type_question,
         CASE WHEN q.type_question = 'qcm' THEN p.proposition ELSE q.réponse_correcte END as réponse
         FROM Signalement s JOIN Question q ON s.question_id = q.id
         LEFT JOIN Proposition p ON q.id = p.question_id AND q.réponse_correcte = p.index_choix
@@ -315,7 +384,7 @@ def afficher_signelements():
         return jsonify({"erreur": f"Erreur dans l'affichage des signalements: {e}."})
 
 # Supprimer une question signalée
-@app.route('/api/admin/question/<int:signalement_id>', methods = ['DELETE'])
+@app.route('/api/admin/question/<int:question_id>', methods = ['DELETE'])
 def supprimer_question(question_id):
     try: 
         conn = obtenir_connexion_db()
@@ -332,10 +401,10 @@ def supprimer_question(question_id):
 
 # Supprimer simplement un signalement 
 @app.route('/api/admin/signalement/<int:signalement_id>', methods = ['DELETE'])
-def supprimer_signalement(question_id):
+def supprimer_signalement(signalement_id):
     try: 
         conn = obtenir_connexion_db()
-        conn.execute("DELETE FROM Signalement WHERE question_id = ?", (question_id,))
+        conn.execute("DELETE FROM Signalement WHERE id = ?", (signalement_id,))
         conn.commit()
         conn.close()
         return jsonify({"message" : "Signalement supprimé avec succès."})
@@ -343,6 +412,8 @@ def supprimer_signalement(question_id):
         conn.rollback()
         conn.close()
         return jsonify({"erreur": f'Erreur dans la suppression du signalement {e}.'}), 500
+    
+
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                               Chemin généraux
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

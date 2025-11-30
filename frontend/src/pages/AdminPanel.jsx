@@ -8,6 +8,7 @@ import './AdminPanel.css';
 const ETATS = {
   CHARGEMENT: 'Chargement du quiz',
   ADMINISTRATION: "Création d'un quiz, d'une question",
+  GESTION_SIGNALEMENT: "Gestion des signalements"
 };
 
 const ONGLETS = {
@@ -15,7 +16,11 @@ const ONGLETS = {
     AJOUTER_QUESTION: 'Ajouter une question',
     IA: 'IA',
     SIGNALEMENT: 'Signalement'
-}
+};
+
+//"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+//                          Composant principale
+//"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 function AdminPanel({socket})
 {
@@ -32,7 +37,7 @@ function AdminPanel({socket})
     const [nvQuizDesc, editerNvQuizDesc] = useState('');
 
     // Pour la création d'une question 
-    const [nvQuestQuizId, editerNvQuestQuizId] = useState(null);
+    const [nvQuestQuizId, editerNvQuestQuizId] = useState('');
     const [nvQuestEnonce, editerNvQuestEnoncé] = useState('');
     const [nvQuestType, editerNvQuestType] = useState('simple');
     const [nvQuestSujet, editerNvQuestSujet] = useState('');
@@ -82,13 +87,13 @@ function AdminPanel({socket})
         try
         {
             const réponse = await fetch('api/admin/signalements');
+            const data = await réponse.json();
 
             if (!réponse.ok)
                 throw new Error(data.erreur || "Erreur réseau.");
 
-            const data = await réponse.json();
             editerListeSignalements(data);
-            editerEtat(ETATS.SIGNALEMENT);
+            editerEtat(ETATS.GESTION_SIGNALEMENT);
         }
         catch (erreur)
         {
@@ -101,6 +106,7 @@ function AdminPanel({socket})
     useEffect(() =>
     {
         editerEtat(ETATS.CHARGEMENT);
+        
         
         if (ongletActif === ONGLETS.AJOUTER_QUESTION)
         {
@@ -259,43 +265,6 @@ function AdminPanel({socket})
         nbQuestQcmIa(3);
    }
 
-   /**
-    * Gestion des signalements
-    * @param {int} signalement_id Le signalement à considérer
-    * @param {int} question_id La question signalée
-    */
-   async function supprimerQuestion(question_id)
-   {
-        if (!window.confirm("Voulez-vous vraiment supprimer cette question ?")) return;
-        try
-        {
-            await fetch(`/api/admin/question/${question_id}`, {method: 'DELETE', credentials: 'include'});
-            chargerSignalement();
-            editerAlerte({message: 'Question supprimée avec succès !', type : 'success'});
-        }
-        catch (erreur)
-        {
-            console.error(erreur);
-            editerAlerte({message: erreur.message, type : 'danger'});
-        }
-   }
-
-   async function supprimerSignalement(signalement_id)
-   {
-        if (!window.confirm("Voulez-vous vraiment supprimer ce signalement ?")) return;
-        try
-        {
-            await fetch(`/api/admin/signalement/${signalement_id}`, {method: 'DELETE', credentials: 'include'});
-            chargerSignalement();
-            editerAlerte({message: 'Signalement supprimé avec succès !', type : 'success'});
-        }
-        catch (erreur)
-        {
-            console.error(erreur);
-            editerAlerte({message: erreur.message, type : 'danger'});
-        }
-   }
-
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     //                          Affichage 
     //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -331,6 +300,8 @@ function AdminPanel({socket})
                     <button className={`tab-btn ${ongletActif === ONGLETS.CREER_QUIZ ? 'active' : ''}`} onClick={() => editerOngletActif(ONGLETS.CREER_QUIZ)}>Nouveau Quiz</button>
                     <button className={`tab-btn ${ongletActif === ONGLETS.AJOUTER_QUESTION ? 'active' : ''}`} onClick={() => editerOngletActif(ONGLETS.AJOUTER_QUESTION)}>Nouvelle Question</button>
                     <button className={`tab-btn ${ongletActif === ONGLETS.CREATION_IA ? 'active' : ''}`} onClick={() => editerOngletActif(ONGLETS.CREATION_IA)}>Nouveau Quiz via l'IA</button>
+                    <button className={`tab-btn ${ongletActif === ONGLETS.SIGNALEMENT ? 'active' : ''}`} onClick={() => editerOngletActif(ONGLETS.SIGNALEMENT)}>Signalements</button>
+                    
                 </div>
                 
                 <div className='tab-content'>
@@ -377,9 +348,10 @@ function AdminPanel({socket})
                                 
                                 <div className='mb-3'>
                                     <label htmlFor = "select-quiz-id" className='form-label'>Choisir le Quiz:</label>
-                                    <select id = 'select-quiz-id' className='form-select' value = {nvQuestQuizId} required>
+                                    <select id = 'select-quiz-id' className='form-select' value = {nvQuestQuizId}  onChange={(e) => editerNvQuestQuizId(e.target.value)} required>
+                                        <option value="" disabled>-- Choisir un quiz --</option>
                                         {listeQuiz.map((quiz) => (
-                                            <option value = {quiz.id}>{quiz.nom}</option>
+                                            <option key = {quiz.id} value = {quiz.id}>{quiz.nom}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -561,17 +533,21 @@ function AdminPanel({socket})
                     {/* Gestion des signalements */}
                     {ongletActif === ONGLETS.SIGNALEMENT && (
                         <div className='card'>
+                            <div className='card-header'><h2>Gestion des Signalements</h2></div>
 
-                            <div className='card-header'><h2>Signalements</h2></div>
-                            
                             <div className='card-body'>
-                                {listeSignalements.length === 0 ? <p>Aucun signalement à traiter.</p> : (
+                                {listeSignalements.length === 0 ? (
+                                    <p className='text-center text-muted'>Aucun signalement à traiter.</p>
+                                )
+                                : (
                                     <div className='signalements-list'>
                                         {listeSignalements.map(signalement => (
-                                            <button key = {signalement.id} className='signalement-bouton' onClick={() => afficherSignalement(signalement.id, signalement.message, signalement.question_id, signalement.énoncé, signalement.type_question, signalement.réponse)}>
-                                                <h3>{signalement.message}</h3>
-                                                <p>{signalement.énoncé}</p>
-                                            </button>
+                                            <GestionSignalement 
+                                            key = {signalement.id}
+                                            signalement = {signalement}
+                                            onRefresh = {chargerSignalement}
+                                            onAlert = {editerAlerte}
+                                            />
                                         ))}
                                     </div>
                                 )}
@@ -589,7 +565,64 @@ function AdminPanel({socket})
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 //                          Composant secondaire
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-function GestionSignalement({})
+function GestionSignalement({signalement, onRefresh, onAlert})
+{
+    const [chargement, editerChargement] = useState(false);
+    const {id, message, question_id, énoncé, type_question, réponse} = signalement;
+
+    async function gestionAdmin(url, method, reussiteMessage)
+    {
+        if (!window.confirm("Confirmez votre décision ?")) return;
+        
+        editerChargement(true);
+        try 
+        {
+            const reponse = await fetch(url, {method: method, credentials: 'include'});
+            if (!reponse.ok) 
+                throw new Error("Erreur serveur");
+
+            onAlert({message: reussiteMessage, type: 'success'});
+            onRefresh();
+        }
+        catch (erreur)
+        {
+            console.error(erreur);
+            onAlert({message: erreur.message, type: 'danger'});
+            editerChargement(false);
+        }
+    }
+
+    return (
+        <div className='card mb-3 p-3 shadow-sm'>
+
+            <div className='description-signalement'>
+                <h5 className='text-primary'>Question: {énoncé}</h5>
+                <p>Réponse: {réponse} ({type_question})</p>
+                <div className='alert alert-warning'>
+                    Signalement: {message}
+                </div>
+            </div>
+
+            <div className='d-flex gap-2 justify-content-end'>
+                <button 
+                    className='btn btn-outline-secondary'
+                    onClick = {() => gestionAdmin(`/api/admin/signalement/${id}`, 'DELETE', 'Signalement supprimé.')}
+                    disabled = {chargement}
+                >
+                    Supprimer le signalement
+                </button>
+
+                <button 
+                    className='btn btn-danger'
+                    onClick = {() => gestionAdmin(`/api/admin/question/${question_id}`, 'DELETE', 'Question et signalement supprimés.')}
+                    disabled = {chargement}
+                >
+                    Supprimer la question
+                </button>
+            </div>
+        </div>
+    )
+}
 
 
 
