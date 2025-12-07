@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 // On import les pages
 import QuizApp from './pages/QuizApp';
 import AdminPanel from './pages/AdminPanel';
+import Multijoueur from './pages/Multijoueur';
 
 // Le styl global
 import './App.css'; 
@@ -21,7 +22,7 @@ function App() {
 
   useEffect(() => {
 
-    const newSocket = io('http://127.0.0.1:5000');
+    const newSocket = io();
     editerSocket(newSocket);
     newSocket.on('connect', () => {
       console.log("Connexion au serveur réussie ! ID:", newSocket.id);
@@ -56,7 +57,8 @@ function App() {
       {/* La barre de navigation (visible sur toutes les pages) */}
       <nav className="main-nav">
         <Link to="/">Jouer au Quiz</Link> | 
-        <Link to="/admin">Administration</Link>
+        <Link to="/admin">Administration</Link> |
+        <Link to="/multijoueur">Multijoueur</Link>
       </nav>
 
       {/* Affichage des notifications */}
@@ -70,10 +72,13 @@ function App() {
       {/* Le système d'échange de contenu */}
       <Routes>
         {/* Si l'URL est "/", affiche le jeu */}
-        <Route path="/" element={<QuizApp socket = {socket} />} />
+        <Route path="/" element={<QuizApp/>} />
         
         {/* Si l'URL est "/admin", affiche le panneau admin */}
         <Route path="/admin" element={<AdminPanel socket = {socket} />} />
+
+        {/* Si l'URL est "/multijoueurs", affiche le panneau admin */}
+        <Route path="/multijoueur" element={<Multijoueur socket = {socket} />} />
       </Routes>
       
     </BrowserRouter>

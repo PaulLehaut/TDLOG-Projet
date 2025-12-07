@@ -8,7 +8,6 @@ import './QuizApp.css';
 const ETATS = {
   CHARGEMENT: 'Chargement du quiz',
   SELECTION: 'Selection',
-  LOBBY: "Salle d'attente",
   INTRO: 'Intro',
   JEU: 'Jeu',
   VALIDATION: 'Validation',
@@ -19,7 +18,7 @@ const ETATS = {
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 //   Composant principal, comme une fonction JavaScript mais qui renvoie du HTML
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-function QuizApp({socket})
+function QuizApp()
 {
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   //                Declaration des etats (variables globales)
@@ -37,13 +36,8 @@ function QuizApp({socket})
   const [questionLive, editerQuestionLive] = useState(null);
   const [score, editerScore] = useState(0);
   const [feedback, editerFeedBack] = useState(null);
-  const [alerte, editerAlerte] = useState(null);
+  const [resultatsFinaux, editerResultatsFinaux] = useState(null);
 
-  // Pour le multijoueur
-  const [roomCode, editerRoomCode] = useState('');
-  const [pseudo, editerPseudo] = useState('');
-  const [listeJoueurs, editerListeJoueurs] = useState([]);
-  const [estHote, editerEstHote] = useState(false); // Important de savoir si un joueur est l'hôte de la partie pour afficher certains boutons (comme demarrer)
 
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   //                    Declaration des effets
@@ -77,57 +71,12 @@ function QuizApp({socket})
     chargerQuiz(); // On appelle la fonction
   }, []); // Le paramètre '[]' signifie que cette fonction ne doit s'executer qu'au montage
 
-  useEffect(() => {
-    if (!socket) 
-      return;
-
-    socket.on('room_creee', (data) => {
-      editerRoomCode(data.code)
-      editerListeJoueurs(data.joueurs);
-      editerEtat(ETATS.LOBBY);
-    });
-
-    socket.on('maj_lobby', (data) => {
-      editerListeJoueurs(data.listeJoueurs);
-      editerEtat(ETATS.LOBBY);
-    });
-
-    socket.on('erreur_connexion', (data) => {
-      alert(data.message);
-    });
-
-    return () => {
-      socket.off('room_creee');
-      socket.off('maj_lobby');
-      socket.off('erreur_connexion');
-    };
-  }, [socket]);
-
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   //              Les fonctions pour les actions de l'utilisateur
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  // Le joueur veut rejoindre un lobby
-  async function rejoindreRoom(event)
-  {
-    event.preventDefault();
-
-    if (!socket)
-    {
-      editerAlerte({message: "Erreur: Problème de connexion avec le backend.", type: 'danger'});
-      return;
-    }
-
-    const data = {
-      code: roomCode,
-      pseudo: pseudo
-    };
-
-    socket.emit('rejoindre_salle', data);
-  }
-
   /** 
-   * Quand l'utilisateur choisit un quiz pour joueur en solo ou en multi
+   * Quand l'utilisateur choisit un quiz pour joueur en solo
    * @param {int} quiz_id Le quiz selectionne
   */
   async function gererQuizSelectionne(quiz_id)
@@ -155,27 +104,7 @@ function QuizApp({socket})
     }
   }
 
-  async function creerRoom(quiz_id)
-  {
-    if (!socket)
-    {
-      editerAlerte({message: "Erreur: Problème de connexion avec le backend.", type: 'danger'});
-      return;
-    }
-
-    const data = {
-      pseudo: pseudo,
-      quiz_id: quiz_id,
-      nb_questions: nbQuestions
-    }
-
-    socket.emit('creer_room', data);
-    editerEstHote(true);
-  }
-
-  /** 
-   * Quand l'utilisateur demarre le quiz
-  */
+  //Quand l'utilisateur demarre le quiz
   async function demarrerQuiz()
   {
     editerEtat(ETATS.JEU);
@@ -184,9 +113,7 @@ function QuizApp({socket})
     await chargerProchaineQuestion();
   }
 
-  /**
-   * Quan on charge une question
-  */
+  //Quan on charge une question
   async function chargerProchaineQuestion()
   {
     editerEtat(ETATS.CHARGEMENT);
@@ -206,8 +133,8 @@ function QuizApp({socket})
       if (data.etat === 'termine')
       {
         editerQuestionLive(null);
+        editerResultatsFinaux({ score: data.score, total: data.total });
         editerEtat(ETATS.FINIT);
-        editerQuizLive(prev => ({...prev, score_final: data.score, total_final: data.total}));
       }
       else
       {
@@ -222,41 +149,35 @@ function QuizApp({socket})
     }
   }
 
-  /**
-   * Traitement d'une reponse
-  */
+  // Traitement d'une réponse
   async function gererReponse(reponse_utilisateur)
   {
     editerEtat(ETATS.VALIDATION);
 
     try
     {
-      const url = 'api/reponse'
+      const url = 'api/reponse';
       const reponse = await fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         credentials: 'include',
-        body: JSON.stringify({reponse_utilisateur: reponse_utilisateur})
+        body: JSON.stringify({reponse_utilisateur})
       });
       const resultat = await reponse.json();
-
-      if (!reponse.ok)
-        throw new Error(resultat.erreur || "Erreur reseau");
-
+            
+      // Mise à jour locale
       editerScore(resultat.score);
       if (resultat.resultat_correct)
-        editerFeedBack({message: 'Bonne reponse, felicitation !', correct: true});
+        editerFeedBack({message: 'Bonne réponse, bravo !', correct: true});
       else 
-        editerFeedBack({message: 'Mauvaise reponse, bien guez !', correct: false});
-      
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      await chargerProchaineQuestion();
+        editerFeedBack({message: `Raté, bien guez ! `, correct: false});
+            
+      // En solo, on passe à la suite automatiquement après 2s
+      setTimeout(chargerProchaineQuestion, 2000);
     }
-    catch (erreur)
-    {
-      console.error(erreur);
-      editerEtat(ETATS.ERREUR);
+    catch (e)
+    { 
+      console.error(e); 
     }
   }
 
@@ -291,60 +212,25 @@ function QuizApp({socket})
     {
       return (
         <>
-          {alerte && (
-              <div className={`alert alert-${alerte.type}`} style={{padding: '10px', backgroundColor: '#fee2e2', color: '#991b1b', marginBottom: '20px', borderRadius: '8px'}}>
-                  {alerte.message}
-                  {/* Petit bouton pour fermer l'alerte */}
-                  <button onClick={() => editerAlerte(null)} style={{marginLeft: '15px', border:'none', background:'transparent', cursor:'pointer'}}>✖</button>
-              </div>
-          )}
-          <div className='pseudo'>Renseigner votre pseudonyme:
-            <input 
-            id = 'pseudo-input'
-            type = 'str'
-            value = {pseudo}
-            onChange = {(e) => editerPseudo(e.target.value)}
-            required 
-            />
+          <h1>Choisissez un Quiz</h1>
+          <div className='quiz-list'>
+            {listeQuiz.map(quiz => (
+              <button key = {quiz.id} className='quiz-bouton' onClick={() => gererQuizSelectionne(quiz.id)}>
+                <h3>{quiz.nom}</h3>
+                <p>{quiz.description}</p>
+              </button>
+            ))}
           </div>
-
-          <div className='join-room'>
+          <div className='nbQuestions-container'>
+            <label htmlFor='nbQuestions-input'>Nombre de questions:</label>
             <input 
-            id = 'room-code'
-            type = 'str'
-            value = {roomCode}
-            onChange = {(e) => editerRoomCode(e.target.value)}
-            required
+            id = 'nbQuestions-input'
+            type = 'number'
+            value = {nbQuestions}
+            onChange = {(e) => editerNbQuestions(e.target.value)}
+            min = '1'
+            max = '50'
             />
-            <button className='join-btn' onClick={(e) => rejoindreRoom(e)}>Rejoindre le lobby</button>
-          </div>
-
-          <div className='create-room'>
-            <h1>Choisissez un Quiz</h1>
-            <div className='quiz-list'>
-              {listeQuiz.map(quiz => (
-                <div key={quiz.id} className='quiz-card'>
-                  <h3>{quiz.nom}</h3>
-                  <p>{quiz.description}</p>
-
-                  <div className='quiz-actions'>
-                    <button onClick = {() => gererQuizSelectionne(quiz.id)}>Joueur en Solo</button>
-                    <button onClick = {() => creerRoom(quiz.id)}>Creer une partie Multijoueurs</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className='nbQuestions-container'>
-              <label htmlFor='nbQuestions-input'>Nombre de questions:</label>
-              <input 
-              id = 'nbQuestions-input'
-              type = 'number'
-              value = {nbQuestions}
-              onChange = {(e) => editerNbQuestions(e.target.value)}
-              min = '1'
-              max = '50'
-              />
-            </div>
           </div>
         </>
       );
@@ -372,7 +258,7 @@ function QuizApp({socket})
         <QuizGame
           question = {questionLive}
           score = {score}
-          nbQuestions = {quizLive.nombre_questions}
+          nbQuestions = {nbQuestions}
           feedback = {feedback}  
           onReponse = {gererReponse}
           etat_jeu = {etatApp}
@@ -380,54 +266,20 @@ function QuizApp({socket})
       );
     }
 
-    if (etatApp === ETATS.FINIT && quizLive)
+    if (etatApp === ETATS.FINIT)
     {
       return (
         <>
-          <h1>Quiz Termine !</h1>
-          <h2>Votre score final est de: {quizLive.score_final} / {quizLive.total_final}</h2>
+          <h1>Quiz Terminé !</h1>
+          {resultatsFinaux && (
+              <h2>Votre score final est de: {resultatsFinaux.score} / {resultatsFinaux.total}</h2>
+          )}
+          
           <button className='start-button' onClick={resetQuiz}>
-            Retour à la selection de Quiz !
+            Retour à la sélection de Quiz !
           </button>
         </>
       );
-    }
-
-    if (etatApp === ETATS.LOBBY)
-    {
-      return (
-        <div className='lobby-container'>
-          <h1>Salle d'attente</h1>
-          
-          <div className='room-info'>
-            <p>Code de la salle à partager :</p>
-            <div>
-                {roomCode}
-            </div>
-          </div>
-
-          <div className='players-list'>
-            <h3>Joueurs connectés ({listeJoueurs.length}) :</h3>
-            <ul>
-              {listeJoueurs.map((joueur, index) => (
-                <li key={index}>
-                    {joueur === pseudo ? <strong>{joueur} (Moi)</strong> : joueur}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className='lobby-actions'>
-            {estHote ? (
-                <button className='start-button' onClick={() => lancerPartieMulti()}>
-                    Lancer la partie !
-                </button>
-            ) : (
-                <div className='alert alert-info'>En attente de l'hôte... Préparez-vous !</div>
-            )}
-          </div>
-        </div>        
-      )
     }
 
     return <h1>Etat inconnu, bug.</h1>;// Ne devrait jamais s'afficher
@@ -528,7 +380,7 @@ function QuizGame({question, score, nbQuestions, feedback, onReponse, etat_jeu})
       {feedback && (
         <div className={`feedback ${feedback.correct ? 'correct' : 'incorrect'}`}>
           <p>{feedback.message}</p>
-          <p>{feedback.correct ? '' : `La bonne reponse: ${question.reponse_correcte}`}</p>
+          <p>{feedback.correct ? '' : `La bonne réponse: ${question.reponse_correcte}`}</p>
         </div>
       )}
       <div className='signalement button'>

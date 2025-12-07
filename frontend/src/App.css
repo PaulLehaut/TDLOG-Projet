@@ -1,38 +1,62 @@
-/* Fichier: frontend/src/App.css */
-
-/* Style de base pour toute l'application */
+/* =========================================
+   1. RESET & STYLE DE BASE (BODY)
+   ========================================= */
 body {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
-  background-color: #282c34; /* Fond sombre global */
-  color: white;
+  /* Ajoute de l'espace en haut pour ne pas être caché par la barre de navigation */
+  padding-top: 80px; 
+  background-color: #282c34; /* Le fond gris foncé */
+  color: white;              /* Le texte en blanc */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Assure que la page fait au moins toute la hauteur de l'écran */
+  min-height: 100vh;
 }
 
-/* Style de la barre de navigation */
+/* =========================================
+   2. LE CONTENEUR PRINCIPAL (Pour centrer)
+   ========================================= */
+.App-container {
+  /* Largeur maximale pour ne pas que le site soit trop large sur grand écran */
+  max-width: 1000px; 
+  
+  /* LA MAGIE DU CENTRAGE : */
+  margin-left: auto;
+  margin-right: auto;
+  
+  /* Un peu d'espace sur les côtés sur mobile */
+  padding: 0 20px;
+  
+  /* Centre le texte par défaut */
+  text-align: center;
+}
+
+/* =========================================
+   3. LA BARRE DE NAVIGATION (Menu)
+   ========================================= */
 .main-nav {
-  position: fixed;
+  position: fixed; /* Reste collée en haut */
   top: 0;
   left: 0;
   width: 100%;
   height: 60px;
-  background-color: #20232a;
+  background-color: #20232a; /* Un peu plus foncé que le fond */
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Ombre portée */
+  
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 30px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
+  justify-content: center; /* Centre les liens */
+  align-items: center;     /* Centre verticalement */
+  gap: 30px;               /* Espace entre les liens */
+  z-index: 1000;           /* Toujours au-dessus du reste */
 }
 
 .main-nav a {
   color: #61dafb; /* Bleu React */
   text-decoration: none;
-  font-weight: 600;
   font-size: 1.1rem;
-  padding: 8px 16px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
+  font-weight: bold;
+  transition: color 0.2s;
 }
 
 .main-nav a:hover {
@@ -40,35 +64,37 @@ body {
   text-decoration: underline;
 }
 
-/* Notification Flottante (Toast) */
+/* =========================================
+   4. NOTIFICATIONS GLOBALES (Toast)
+   ========================================= */
 .global-notification {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
-  padding: 15px 25px;
+  top: 70px; /* Juste en dessous de la barre */
+  left: 50%;
+  transform: translateX(-50%); /* Parfaitement centré */
+  padding: 15px 30px;
   border-radius: 8px;
-  color: white;
-  font-weight: bold;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  z-index: 1000; /* Pour être au-dessus de tout */
-  animation: slideIn 0.5s ease-out;
+  z-index: 999;
   display: flex;
   align-items: center;
   gap: 15px;
+  animation: slideDown 0.5s ease-out;
 }
 
-.global-notification.success { background-color: #28a745; }
-.global-notification.danger { background-color: #dc3545; }
+.global-notification.success { background-color: #28a745; color: white; }
+.global-notification.danger { background-color: #dc3545; color: white; }
 
 .global-notification button {
   background: none;
   border: none;
   color: white;
-  font-size: 1.2em;
+  font-weight: bold;
   cursor: pointer;
+  font-size: 1.2em;
 }
 
-@keyframes slideIn {
-  from { transform: translateY(100px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }

@@ -7,7 +7,9 @@ from thefuzz import fuzz # Pour gérer les réponses simples
 import random
 import string
 
-app = Flask(__name__)
+
+dossier_frontend = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'frontend', 'dist')
+app = Flask(__name__, static_folder=dossier_frontend, static_url_path='')
 app.config['JSON_AS_ASCII'] = False
 
 app.secret_key = 'Paul-est-un-malade-mental'
@@ -36,7 +38,7 @@ def obtenir_connexion_db():
 ROOMS = {}
 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-#                                            Session de jeu 
+#                                            Session de jeu (Solo)
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 # Premier EndPoint, on commence par choisisr un quiz
 @app.route('/api/selection_quiz', methods = ['GET'])
@@ -99,7 +101,7 @@ def get_question_suivante():
     if index_live >= len(session['questions']): # Quiz terminé
         print(f'Quiz terminé pour {request.remote_addr}')
         return jsonify({
-            "état": "terminé",
+            "etat": "termine",
             "message": "Quiz terminé !",
             "score": session['quiz_score'],
             "total": sum(q["points"] for q in session['questions'])
@@ -109,7 +111,7 @@ def get_question_suivante():
 
     question = {
         "index": index_live,
-        "énoncé": question_live['énoncé'],
+        "enonce": question_live['énoncé'],
         "points": question_live['points'],
         "id": question_live['id'],
     }
@@ -120,12 +122,12 @@ def get_question_suivante():
             liste_propositon = conn.execute("SELECT proposition FROM Proposition WHERE question_id = ?",(question_live["id"],)).fetchall()
             question['type_question'] = 'qcm'
             question['propositions'] = [p['proposition'] for p in liste_propositon]
-            question['réponse_correcte'] = liste_propositon[int(question_live['réponse_correcte'])-1]['proposition']
+            question['reponse_correcte'] = liste_propositon[int(question_live['réponse_correcte'])-1]['proposition']
             conn.close()
 
         case 'simple':
             question['type_question'] = 'simple'
-            question['réponse_correcte'] = question_live['réponse_correcte']
+            question['reponse_correcte'] = question_live['réponse_correcte']
 
     return jsonify(question) # Renvoie de la question en convertissant le dictionnaire au format json
 
@@ -137,10 +139,10 @@ def post_answer():
         return jsonify({"erreur": "Quiz non démarré"}), 400
 
     data = request.get_json()
-    if not data or 'réponse_utilisateur' not in data :
+    if not data or 'reponse_utilisateur' not in data :
         return jsonify({"erreur": "Pas de réponse"}), 400
     
-    réponse_utilisateur = data['réponse_utilisateur']
+    réponse_utilisateur = data['reponse_utilisateur']
     index_live = session['quiz_index']
     question = session['questions'][index_live]
 
@@ -163,9 +165,9 @@ def post_answer():
     session['quiz_index'] += 1
 
     return jsonify({
-        "résultat_correct": réponse_correcte,
+        "resultat_correct": réponse_correcte,
         "score": session['quiz_score'],
-        "réponse_question": bonne_réponse # On renvoie la bonne réponse au cas où
+        "reponse_correcte": bonne_réponse # On renvoie la bonne réponse au cas où
     })
 
 
@@ -194,25 +196,9 @@ def generer_code_room():
 @socketio.on('creer_room')
 def creer_room(data):
     room_code = generer_code_room()
-    quiz_id = data['quiz_id']
     pseudo = data['pseudo']
-    nb_questions = data['nb_questions']
-
-    conn = obtenir_connexion_db()
-    questions_db = conn.execute("SELECT * FROM Question WHERE quiz_id = ? ORDER BY RANDOM() LIMIT ?", (quiz_id, nb_questions)).fetchall()
-    liste_questions = []
-    for quest in questions_db: 
-        quest_dict = dict(quest)
-        if quest_dict['type_question'] == 'qcm':
-            props_db = conn.execute("SELECT proposition FROM Proposition WHERE question_id	 = ? ", (quest_dict['id'],)).fetchall()
-            quest_dict['proposition'] = [props['proposition'] for props in props_db]
-        liste_questions.append(quest_dict)
-    conn.close()
     ROOMS[room_code] = {
         'host': request.sid,
-        'quiz_id': quiz_id,
-        'questions': liste_questions,
-        'current_index': 0,
         'etat': 'LOBBY',
         'joueurs': {}
     }
@@ -221,15 +207,52 @@ def creer_room(data):
     print(f'room {room_code} créée par {pseudo}.')
     emit('room_creee', {'code': room_code, 'joueurs': [pseudo]})
 
+@socketio.on('choisir_quiz')
+def choisir_quiz(data):
+    room_code = data['roomCode']
+    quiz_id = data['quiz_id']
+    nb_questions = data['nbQuestions']
+
+    if room_code not in ROOMS:
+        emit('erreur_connexion', {'message': "Room introuvable."})
+        return
+
+    conn = obtenir_connexion_db()
+    quiz_data = conn.execute("SELECT nom, description FROM Quiz WHERE id = ?", (quiz_id,)).fetchone()
+    if quiz_data is None:
+        conn.close()
+        emit('erreur_connexion', {'message': "Erreur de connexion à la base de données."})
+    
+    quiz = dict(quiz_data)
+    nom_quiz = quiz["nom"]
+    quiz_desc = quiz["description"]
+
+    questions_db = conn.execute("SELECT * FROM Question WHERE quiz_id = ? ORDER BY RANDOM() LIMIT ?", (quiz_id, nb_questions)).fetchall()
+    
+    liste_questions = []
+    for quest in questions_db: 
+        quest_dict = dict(quest)
+        if quest_dict['type_question'] == 'qcm':
+            props_db = conn.execute("SELECT proposition FROM Proposition WHERE question_id = ?", (quest_dict['id'],)).fetchall()
+            quest_dict['propositions'] = [p['proposition'] for p in props_db]
+        liste_questions.append(quest_dict)
+    conn.close()
+
+    ROOMS[room_code]['quiz_id'] = quiz_id
+    ROOMS[room_code]['questions'] = liste_questions
+    ROOMS[room_code]['current_index'] = 0
+    
+    socketio.emit('quiz_selectionne', {'message': 'Le quiz a été choisi ! Préparez-vous.', 'quiz_nom': nom_quiz, 'quiz_desc': quiz_desc}, room=room_code)
+
 @socketio.on('rejoindre_room')
 def rejoindre_room(data):
     room_code = data['code'].upper()
     pseudo = data['pseudo']
 
     if room_code not in ROOMS:
-        emit('erreur_connexion', {'message': "room introuvable."})
+        emit('erreur_connexion', {'message': "Room introuvable."})
         return
-    if ROOMS[room_code]['etat'] != 'LOBBY':
+    if ROOMS[room_code]['etat'] != 'LOBBY' and ROOMS[room_code]['etat'] != 'INTRO':
         emit('erreur_connexion', {'message': "Partie déjà en cours."})
         return
     
@@ -238,7 +261,82 @@ def rejoindre_room(data):
     print(f'{pseudo} a rejoint la room {room_code}.')
 
     liste_pseudos = [joueur['pseudo'] for joueur in ROOMS[room_code]['joueurs'].values()]
-    socketio.emit('maj_lobby', {'joueurs': liste_pseudos}, room = room_code)
+    emit('maj_lobby', {'joueurs': liste_pseudos}, room = room_code)
+
+    if 'quiz_id' in ROOMS[room_code]:
+        quiz_id = ROOMS[room_code]['quiz_id']
+        conn = obtenir_connexion_db()
+        quiz_data = conn.execute("SELECT nom, description FROM Quiz WHERE id = ?", (quiz_id,)).fetchone()
+        conn.close()
+        
+        if quiz_data:
+            emit('quiz_selectionne', {'message': 'Quiz déjà sélectionné, prépare-toi !', 'quiz_nom': quiz_data['nom'], 'quiz_desc': quiz_data['description']}, to=request.sid)
+
+@socketio.on('lancer_quiz')
+def prochaine_question(data):
+    try:
+        data['timer'] = int(data['timer']) 
+    except ValueError:
+        data['timer'] = 15
+    socketio.start_background_task(cycle_jeu, data)
+
+@socketio.on('envoyer_reponse')    
+def gerer_reponse(data):
+    try:
+        room_code = data['roomCode'].upper()
+        if room_code not in ROOMS or ROOMS[room_code]['etat'] != 'JEU':
+             return 
+
+        reponse_utilisateur = data['reponse_utilisateur']
+        current_quest = data['question'] 
+
+        ROOM = ROOMS[room_code]
+        current_index = ROOM['current_index']
+        
+        room_quest = ROOM['questions'][current_index - 1] 
+
+        if room_quest['id'] != current_quest['id']:
+            print(f"Desynchro: ID Serveur {room_quest['id']} vs ID Client {current_quest['id']}")
+            return
+
+        reponse_question = room_quest['réponse_correcte'] 
+        reponse_correcte = False
+
+        match room_quest['type_question']:
+            case 'qcm':
+                reponse_correcte = int(reponse_question) == int(reponse_utilisateur)
+            case 'simple':
+                score = fuzz.token_sort_ratio(str(reponse_utilisateur).lower(), str(reponse_question).lower())
+                reponse_correcte = score >= 80
+        
+        points = room_quest['points']
+        
+        ROOM['joueurs'][request.sid]['score'] += points if reponse_correcte else 0
+        
+        emit('resultat_reponse', {'reponse_correcte': reponse_correcte})
+        
+    except Exception as e:
+        print(f"Erreur lors de la réponse : {e}")
+
+@socketio.on('reset_room')
+def reset_room(data):
+    room_code = data['roomCode'].upper()
+
+    if room_code not in ROOMS:
+        emit('erreur_connexion', {'message': "Room introuvable."})
+        return
+    
+    ROOMS[room_code]['etat'] = 'LOBBY'
+    if 'quiz_id' in ROOMS[room_code]:
+        del ROOMS[room_code]['quiz_id']
+
+    ROOMS[room_code]['current_index'] = 0
+    for joueurs_sid in ROOMS[room_code]['joueurs']:
+        ROOMS[room_code]['joueurs'][joueurs_sid]['score'] = 0
+
+    liste_pseudos = [j['pseudo'] for j in ROOMS[room_code]['joueurs'].values()]
+    emit('force_lobby', {'joueurs': liste_pseudos}, room=room_code)
+
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                                Interaction des utilisateurs 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -263,7 +361,6 @@ def signaler_question():
         conn.rollback()
         conn.close()
         return jsonify({"erreur": str(e)}), 500
-
 
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 #                                                EndPoint d'administration 
@@ -418,19 +515,18 @@ def supprimer_signalement(signalement_id):
 #                                               Chemin généraux
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-# Page utilisateur 
 @app.route('/')
-def route_utilisateur():
-    return send_from_directory(dossier_projet, 'index.html')
+def serve_react():
+    # Sert le fichier HTML principal
+    return send_from_directory(app.static_folder, 'index.html')
 
-# Page administrateur
-@app.route('/admin')
-def route_admin():
-    return send_from_directory(dossier_projet, 'admin.html')
-
-# Pour n'importe quel autre fichier
-@app.route('/<path:nom_fichier>')
-def route_fichiers(nom_fichier):
+@app.route('/<path:path>')
+def serve_static(path):
+    # Sert les autres fichiers (CSS, JS, Images) s'ils existent
+    if os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    # Sinon, on renvoie index.html (pour que React gère les routes)
+    return send_from_directory(app.static_folder, 'index.html')
     return send_from_directory(dossier_projet, nom_fichier)
 
 
@@ -456,12 +552,59 @@ def creation_ia(data):
         quiz_id = remplir_db(data, chemin_db)
         
         print(f"Nouveau Quiz suggéré avec succès.")
-        socketio.emit('ia_terminee', {'message': f"Quiz {quiz_nom} généré avec succès !"})
+        socketio.emit('ia_terminee', {'message': f"Quiz {quiz_nom} généré avec succès ! Il s'agit du quiz numéro {quiz_id}."})
     
     except Exception as e:
         print(f'Erreur: {e}')
         socketio.emit('ia_erreur', {'message': str(e)})
 
+# Gestion d'une session de jeu multijoueurs 
+def cycle_jeu(data):
+    room_code = data['roomCode']
+    if room_code not in ROOMS:
+        return
+    
+    reponse_timer = data['timer']
+    ROOMS[room_code]['etat'] = 'JEU'
+    ROOM = ROOMS[room_code]
+    questions = ROOM['questions']
+    index = 0
+    total_questions = len(questions)
+    while index < total_questions:
+        ROOMS[room_code]['current_index'] = index + 1
+        question_brute = questions[index]
+        question = {
+            'index': index,
+            'enonce': question_brute['énoncé'],
+            'type_question': question_brute['type_question'],
+            'points': question_brute['points'],
+            'id': question_brute['id'],
+            'propositions': question_brute.get('propositions', []),
+            'reponse_correcte': question_brute['réponse_correcte']
+        }
+
+        socketio.emit('nouvelle_question', {'question': question, 'total_questions': total_questions, 'index_actuel': index}, room = room_code)
+        socketio.sleep(reponse_timer)
+
+        reponse_question = question['reponse_correcte']
+        if question['type_question'] == 'qcm':
+            index_reponse = int(question['reponse_correcte']) - 1
+            if 0 <= index_reponse < len(question['propositions']):
+                reponse_question = question['propositions'][index_reponse]
+
+        socketio.emit('afficher_reponse',{'points': question['points'], 'reponse_question': reponse_question}, room = room_code)
+        socketio.sleep(5)
+
+        index += 1
+
+    dict_joueurs = ROOM['joueurs']
+    liste_joueurs = []
+    for sid, dict in dict_joueurs.items():
+        liste_joueurs.append({'pseudo': dict['pseudo'], 'score': dict['score']})
+
+    classement = sorted(liste_joueurs, key = lambda x: x['score'], reverse = True)
+    ROOMS[room_code]['etat'] = 'FINI'
+    socketio.emit('quiz_termine', {'classement': classement}, room = room_code)
 
 # Fin du code, lancement du site -----------------------------------------------------------------------------------
 
