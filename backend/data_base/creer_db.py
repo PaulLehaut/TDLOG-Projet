@@ -16,6 +16,7 @@ def initialiser_db():
     cursor.execute("DROP TABLE IF EXISTS Proposition;")
     cursor.execute("DROP TABLE IF EXISTS Question;")
     cursor.execute("DROP TABLE IF EXISTS Quiz;")
+    cursor.execute("DROP TABLE IF EXISTS Signalement;")
 
     # On créé une première table qui contien la liste des quiz
     cursor.execute("""

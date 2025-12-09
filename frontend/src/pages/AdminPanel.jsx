@@ -161,21 +161,21 @@ function AdminPanel({ socket }) {
     if (nvQuestType === "qcm") {
       data = {
         quiz_id: parseInt(nvQuestQuizId),
-        énoncé: nvQuestEnonce,
+        enonce: nvQuestEnonce,
         type_question: nvQuestType,
         sujet_question: nvQuestSujet,
-        réponse_correcte: nvQuestReponse,
-        points: nvQuestPoints,
+        reponse_correcte: nvQuestReponse,
+        points: parseInt(nvQuestPoints),
         propositions: [nvQuestProp1, nvQuestProp2, nvQuestProp3, nvQuestProp4],
       };
     } else {
       data = {
         quiz_id: parseInt(nvQuestQuizId),
-        énoncé: nvQuestEnonce,
-        type: nvQuestType,
-        sujet: nvQuestSujet,
-        réponse: nvQuestReponse,
-        points: nvQuestPoints,
+        enonce: nvQuestEnonce,
+        type_question: nvQuestType,
+        sujet_question: nvQuestSujet,
+        reponse_correcte: nvQuestReponse,
+        points: parseInt(nvQuestPoints),
       };
     }
     try {
@@ -196,7 +196,7 @@ function AdminPanel({ socket }) {
       });
 
       editerNvQuestQuizId("");
-      editerNvQuestType("");
+      editerNvQuestType("simple");
       editerNvQuestEnoncé("");
       editerNvQuestSujet("");
       editerNvQuestPoints(5);
@@ -239,7 +239,7 @@ function AdminPanel({ socket }) {
     });
     socket.emit("demande_generation_ia", data);
 
-    editerNvQuizIADesc("");
+    editerNvQuizIANom("");
     editerNvQuizIADesc("");
     editerNbQuestionsSimplesIA(2);
     nbQuestQcmIa(3);

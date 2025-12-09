@@ -405,14 +405,14 @@ def creer_quiz_admin():
 @app.route('/api/admin/questions', methods = ['POST'])
 def creer_question_admin():
     data = request.get_json()
-    if not data or 'quiz_id' not in data or 'type_question' not in data or 'sujet_question' not in data or 'énoncé' not in data or 'réponse_correcte' not in data:
+    if not data or 'quiz_id' not in data or 'type_question' not in data or 'sujet_question' not in data or 'enonce' not in data or 'reponse_correcte' not in data:
         return jsonify({"erreur": "La question est incomplète."}), 400
     
     quiz_id = data.get('quiz_id')
     type_question = data.get('type_question')
     sujet_question = data.get('sujet_question')
-    énoncé = data.get('énoncé')
-    réponse = data.get('réponse_correcte')
+    enonce = data.get('enonce')
+    reponse = data.get('reponse_correcte')
     points = data.get('points', 5) # Par défaut une question vaut 5 points 
 
     if type_question ==  'qcm':
@@ -426,11 +426,11 @@ def creer_question_admin():
         cursor = conn.cursor()
 
         cursor.execute("INSERT OR IGNORE INTO Question (quiz_id, type_question, sujet_question, énoncé, points, réponse_correcte) VALUES (?, ?, ?, ?, ?, ?)",
-                       (quiz_id, type_question, sujet_question, énoncé, points, réponse))
+                       (quiz_id, type_question, sujet_question, enonce, points, reponse))
         
         if cursor.rowcount == 0:
             conn.close()
-            return jsonify({"erreur": f"Une question avec l'énoncé '{énoncé}' existe déjà."}), 409 
+            return jsonify({"erreur": f"Une question avec l'énoncé '{enonce}' existe déjà."}), 409 
         
         nouvelle_question_id = cursor.lastrowid
 
