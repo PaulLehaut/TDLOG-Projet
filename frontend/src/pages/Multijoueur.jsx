@@ -347,7 +347,7 @@ function Multijoueur({socket})
               <button className='start-button' onClick={() => socket.emit('lancer_quiz', {roomCode, timer})}>
                 C'est parti !
               </button>
-              <button className='go-back-button' onClick={() => editerEtat(ETATS.SELECTION)}>
+              <button className='go-back-button' onClick={() => editerEtat(ETATS.LOBBY)}>
                 Revenir à la page de selection.
               </button>
             </div>
@@ -433,19 +433,28 @@ function Multijoueur({socket})
 function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, roomCode, socket})
 {
   const [reponseSimple, editerReponseSimple] = useState('');
-  const timerMS = timer * 1000
+  const [reponseSoumise, editerReponseSoumise] = useState(false);
 
   // Barre de progression
   const [progression, editerProgression] = useState(100);
 
+  // Gestion de la désactivation des boutons une fois la réponse soumise
   useEffect(() => {
-    if (etat_jeu !== 'Partie en cours') // correspond = ETATS.JEU
-    {
-      editerProgression(0);
-      return;
-    }
+    editerReponseSoumise(false);
+    editerReponseSimple('');
+  }, [question]);
+
+  // Gestion de la barre de progression
+  useEffect(() => {
+    if (etat_jeu === ETATS.VALIDATION)
+      return; // Le joueur a soumis sa réponse, on freeze le timer
 
     editerProgression(100);
+    let timerMS;
+    if (etat_jeu === ETATS.REPONSE)
+      timerMS = 5000; // On affiche la réponse pendant 5s
+    else 
+      timerMS = timer * 1000;
 
     const intervalTime = 100; // Mise à jour toute les 0.1s
     const step = 100 / (timerMS / intervalTime);
@@ -468,6 +477,7 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, room
     e.preventDefault(); // On ne recharge pas la page
     if (reponseSimple.trim() === '')
       return;
+    editerReponseSoumise(true);
     socket.emit('envoyer_reponse', {roomCode, reponse_utilisateur: reponseSimple, question});
   }
 
@@ -522,8 +532,11 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, room
               <button
                 key = {index}
                 className='qcm-bouton'
-                onClick = {() => socket.emit('envoyer_reponse', {roomCode, reponse_utilisateur: index + 1, question})}
-                disabled = {validation_en_cours} 
+                onClick = {() => {
+                  editerReponseSoumise(true);
+                  socket.emit('envoyer_reponse', {roomCode, reponse_utilisateur: index + 1, question})
+                }}
+                disabled = {validation_en_cours || reponseSoumise} 
               >
                 {prop}
               </button>
@@ -531,16 +544,16 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, room
           </div>
         )}
         {question.type_question === 'simple' && (
-          <form className='simple-form' onSubmit={gererReponseSimple}>
+          <form className='simple-form' onSubmit={gererReponseSimple} >
             <input
               type = 'text'
               value = {reponseSimple}
               onChange = {(e) => editerReponseSimple(e.target.value)}
               placeholder = 'Votre reponse: '
-              disabled = {validation_en_cours}
+              disabled = {validation_en_cours || reponseSoumise}
             />
-            <button type = "submit" disabled = {validation_en_cours}>
-              Valider
+            <button type = "submit" disabled = {validation_en_cours || reponseSoumise}>
+              {reponseSoumise ? 'Réponse Envoyée' : 'Valider'}
             </button>
           </form>
         )}

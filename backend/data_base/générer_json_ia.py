@@ -26,7 +26,7 @@ def générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm):
                     "question_énoncé": "Exemple de question QCM ?",
                     "question_type": "qcm",
                     "question_sujet": "Général",
-                    "question_réponse": "1",
+                    "question_réponse": "Réponse B",
                     "question_points": 5,
                     "question_propositions": [
                         "Réponse A",
@@ -73,6 +73,29 @@ def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
         # Fin du nettoyage
 
         json_data = json.loads(json_clean)
+
+        for quiz in json_data:
+            for question in quiz.get('questions', []):
+                # QCM: on convertit le texte en index
+                if question.get('question_type') == 'qcm':
+                    propositions = question.get('question_propositions', [])
+                    reponse_ia = question.get('question_réponse', "")
+
+                    if reponse_ia in propositions: # L'IA renvoie bien du texte (pour éviter les erreurs d'indices)
+                        index = propositions.index(reponse_ia) + 1
+                        question['question_réponse'] = str(index)
+                    
+                    elif str(reponse_ia).isdigit(): # L'IA a renvoyé un indice, on doit s'assurer qu'il est cohérent
+                        idx = int(reponse_ia)
+                        # Si l'IA renvoie 0, on transforme en 1, sinon on ne peut pas savoir...
+                        if idx == 0: 
+                            question['question_réponse'] = "1"
+                        else:
+                            question['question_réponse'] = str(idx)
+                    
+                    else: # S'il n'y a pas de réponse
+                        print(f"⚠️ Attention : Réponse IA '{reponse_ia}' non trouvée dans les propositions. Index 1 par défaut.")
+                        question['question_réponse'] = "1"
 
         
         print("Données générées avec succès !")

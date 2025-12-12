@@ -50,8 +50,8 @@ function AdminPanel({ socket }) {
   // Pour la création par IA
   const [nvQuizIaNom, editerNvQuizIANom] = useState("");
   const [nvQuizIaDesc, editerNvQuizIADesc] = useState("");
-  const [nbQuestSimplesIa, editerNbQuestionsSimplesIA] = useState(2);
-  const [nbQuestQcmIa, editerNbQuestionsQcmIA] = useState(3);
+  const [nbQuestSimplesIa, editerNbQuestionsSimplesIA] = useState(20);
+  const [nbQuestQcmIa, editerNbQuestionsQcmIA] = useState(30);
 
   // Pour les signalements
   const [listeSignalements, editerListeSignalements] = useState([]);
@@ -241,8 +241,8 @@ function AdminPanel({ socket }) {
 
     editerNvQuizIANom("");
     editerNvQuizIADesc("");
-    editerNbQuestionsSimplesIA(2);
-    nbQuestQcmIa(3);
+    editerNbQuestionsSimplesIA(20);
+    editerNbQuestionsQcmIA(30);
   }
 
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
