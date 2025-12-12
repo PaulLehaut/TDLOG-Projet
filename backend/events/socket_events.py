@@ -190,10 +190,11 @@ def register_socket_events():
 
             quiz_nom = data.get('nom')
             quiz_desc = data.get('desc', "")
+            quiz_diff = data.get('difficulte', 'Intermédiaire')
             nb_questions_simples = data.get('nb_questions_simples', 2)
             nb_questions_qcm = data.get('nb_questions_qcm', 3)
             
-            data = appeler_ia(quiz_nom, quiz_desc, nb_questions_simples, nb_questions_qcm)
+            data = appeler_ia(quiz_nom, quiz_desc, quiz_diff, nb_questions_simples, nb_questions_qcm)
 
             if not data:
                 raise Exception("L'IA n'a rien envoyé.")

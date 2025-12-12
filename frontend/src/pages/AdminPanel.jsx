@@ -18,6 +18,12 @@ const ONGLETS = {
   SIGNALEMENT: "Signalement",
 };
 
+const DIFFICULTY = [
+  { id: 'FACILE', label: 'Des questions simples' },
+  { id: 'INTERMEDIAIRE', label: 'Des questions de difficulté moyenne' },
+  { id: 'DIFFICILE', label: 'Des questions difficiles' },
+  { id: 'EXPERT', label: 'Des questions pour experts' },
+];
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 //                          Composant principale
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -50,6 +56,7 @@ function AdminPanel({ socket }) {
   // Pour la création par IA
   const [nvQuizIaNom, editerNvQuizIANom] = useState("");
   const [nvQuizIaDesc, editerNvQuizIADesc] = useState("");
+  const [nvQuizDifficulte, editerNvQuizDifficulte] = useState(DIFFICULTY[1].id);
   const [nbQuestSimplesIa, editerNbQuestionsSimplesIA] = useState(20);
   const [nbQuestQcmIa, editerNbQuestionsQcmIA] = useState(30);
 
@@ -229,6 +236,7 @@ function AdminPanel({ socket }) {
     const data = {
       nom: nvQuizIaNom,
       desc: nvQuizIaDesc,
+      difficulte: nvQuizDifficulte,
       nb_questions_simples: parseInt(nbQuestSimplesIa) || 10,
       nb_questions_qcm: parseInt(nbQuestQcmIa) || 10,
     };
@@ -241,6 +249,7 @@ function AdminPanel({ socket }) {
 
     editerNvQuizIANom("");
     editerNvQuizIADesc("");
+    editerNvQuizDifficulte(DIFFICULTY[1].id);
     editerNbQuestionsSimplesIA(20);
     editerNbQuestionsQcmIA(30);
   }
@@ -546,6 +555,28 @@ function AdminPanel({ socket }) {
                       onChange={(e) => editerNvQuizIADesc(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="mb-3">
+                  <label htmlFor="select-quiz-difficulte" className="form-label">
+                    Choisir le Niveau de Difficulté:
+                  </label>
+                  <select
+                    id="select-quiz-difficulte"
+                    className="form-select"
+                    value={nvQuizDifficulte}
+                    onChange={(e) => editerNvQuizDifficulte(e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>
+                      -- Choisir un niveau de difficulté pour les questions --
+                    </option>
+                    {DIFFICULTY.map((diff) => (
+                      <option key={diff.id} value={diff.id}>
+                        {diff.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="row g-3 mb-3">

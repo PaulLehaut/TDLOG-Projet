@@ -3,9 +3,9 @@ import json
 import os
 import sys
 
-def générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm):
+def générer_prompt(nom, desc, diff, nb_questions_simples, nb_questions_qcm):
     prompt = f"""Génère un quiz sur le sujet "{nom}".
-    Le quiz doit avoir {nb_questions_simples} questions simples (sans propositions) et {nb_questions_qcm} questions de type QCM.
+    Le quiz doit avoir {nb_questions_simples} questions simples (sans propositions) et {nb_questions_qcm} questions de type QCM, les questions doivent-être de niveau {diff}.
     Le format de sortie doit être UNIQUEMENT un JSON valide, sans markdown (pas de ```json au début).
     
     Voici la structure exacte du JSON attendu :
@@ -41,7 +41,7 @@ def générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm):
     """
     return prompt
 
-def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
+def appeler_ia(nom, desc, diff, nb_questions_simples, nb_questions_qcm):
     
     #On appelle la clef IA Google
     key = os.environ.get("GOOGLE_API_KEY")
@@ -57,7 +57,7 @@ def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
 
         generation_config = genai.types.GenerationConfig(response_mime_type = "application/json")
 
-        prompt = générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm)
+        prompt = générer_prompt(nom, desc, diff, nb_questions_simples, nb_questions_qcm)
         réponse = model.generate_content(prompt, generation_config = generation_config)
 
         json_brut = réponse.text
