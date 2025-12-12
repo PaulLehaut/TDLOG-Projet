@@ -347,7 +347,7 @@ function Multijoueur({socket})
               <button className='start-button' onClick={() => socket.emit('lancer_quiz', {roomCode, timer})}>
                 C'est parti !
               </button>
-              <button className='go-back-button' onClick={() => editerEtat(ETATS.LOBBY)}>
+              <button className='go-back-button' onClick={() => socket.emit('reset_room', {roomCode})}>
                 Revenir à la page de selection.
               </button>
             </div>

@@ -26,7 +26,7 @@ def register_socket_events():
                 return code
     
     #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-    #                                           Evènements
+    #                                         Evènements Multi
     #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     @socketio.on('creer_room')
     def creer_room(data):
@@ -153,6 +153,11 @@ def register_socket_events():
         except Exception as e:
             print(f"Erreur lors de la réponse : {e}")
 
+    @socketio.on('disconnect')
+    def gerer_deconnexion():
+        id = request.sid
+    
+
     @socketio.on('reset_room')
     def reset_room(data):
         room_code = data['roomCode'].upper()
@@ -172,6 +177,9 @@ def register_socket_events():
         liste_pseudos = [j['pseudo'] for j in ROOMS[room_code]['joueurs'].values()]
         emit('force_lobby', {'joueurs': liste_pseudos}, room=room_code)
 
+    #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    #                                    Evènements Admin
+    #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     # Création d'un quiz avec l'IA depuis l'API
     @socketio.on('demande_generation_ia')
     def creer_quiz_ia(data):
