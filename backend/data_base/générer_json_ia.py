@@ -3,9 +3,9 @@ import json
 import os
 import sys
 
-def générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm):
+def générer_prompt(nom, desc, diff, nb_questions_simples, nb_questions_qcm):
     prompt = f"""Génère un quiz sur le sujet "{nom}".
-    Le quiz doit avoir {nb_questions_simples} questions simples (sans propositions) et {nb_questions_qcm} questions de type QCM.
+    Le quiz doit avoir {nb_questions_simples} questions simples (sans propositions) et {nb_questions_qcm} questions de type QCM, les questions doivent-être de niveau {diff}.
     Le format de sortie doit être UNIQUEMENT un JSON valide, sans markdown (pas de ```json au début).
     
     Voici la structure exacte du JSON attendu :
@@ -26,7 +26,7 @@ def générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm):
                     "question_énoncé": "Exemple de question QCM ?",
                     "question_type": "qcm",
                     "question_sujet": "Général",
-                    "question_réponse": "1",
+                    "question_réponse": "Réponse B",
                     "question_points": 5,
                     "question_propositions": [
                         "Réponse A",
@@ -41,7 +41,7 @@ def générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm):
     """
     return prompt
 
-def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
+def appeler_ia(nom, desc, diff, nb_questions_simples, nb_questions_qcm):
     
     #On appelle la clef IA Google
     key = os.environ.get("GOOGLE_API_KEY")
@@ -57,7 +57,7 @@ def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
 
         generation_config = genai.types.GenerationConfig(response_mime_type = "application/json")
 
-        prompt = générer_prompt(nom, desc, nb_questions_simples, nb_questions_qcm)
+        prompt = générer_prompt(nom, desc, diff, nb_questions_simples, nb_questions_qcm)
         réponse = model.generate_content(prompt, generation_config = generation_config)
 
         json_brut = réponse.text
@@ -73,6 +73,29 @@ def appeler_ia(nom, desc, nb_questions_simples, nb_questions_qcm):
         # Fin du nettoyage
 
         json_data = json.loads(json_clean)
+
+        for quiz in json_data:
+            for question in quiz.get('questions', []):
+                # QCM: on convertit le texte en index
+                if question.get('question_type') == 'qcm':
+                    propositions = question.get('question_propositions', [])
+                    reponse_ia = question.get('question_réponse', "")
+
+                    if reponse_ia in propositions: # L'IA renvoie bien du texte (pour éviter les erreurs d'indices)
+                        index = propositions.index(reponse_ia) + 1
+                        question['question_réponse'] = str(index)
+                    
+                    elif str(reponse_ia).isdigit(): # L'IA a renvoyé un indice, on doit s'assurer qu'il est cohérent
+                        idx = int(reponse_ia)
+                        # Si l'IA renvoie 0, on transforme en 1, sinon on ne peut pas savoir...
+                        if idx == 0: 
+                            question['question_réponse'] = "1"
+                        else:
+                            question['question_réponse'] = str(idx)
+                    
+                    else: # S'il n'y a pas de réponse
+                        print(f"⚠️ Attention : Réponse IA '{reponse_ia}' non trouvée dans les propositions. Index 1 par défaut.")
+                        question['question_réponse'] = "1"
 
         
         print("Données générées avec succès !")

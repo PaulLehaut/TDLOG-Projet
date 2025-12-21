@@ -2,10 +2,11 @@ import sqlite3 # On utilise sqlite3 pour la database
 import os
 import sys
 
-dossier_db = 'data_base'
+dossier_source = os.path.dirname(os.path.abspath(__file__))
+
 nom_fichier = 'quiz.db'
-data_base_nom = os.path.join(dossier_db, nom_fichier)
-os.makedirs(dossier_db, exist_ok = True)
+data_base_nom = os.path.join(dossier_source, nom_fichier)
+
 
 def initialiser_db():
     conn = sqlite3.connect(data_base_nom) # Il s'agit d'une connexion à la database
@@ -15,6 +16,7 @@ def initialiser_db():
     cursor.execute("DROP TABLE IF EXISTS Proposition;")
     cursor.execute("DROP TABLE IF EXISTS Question;")
     cursor.execute("DROP TABLE IF EXISTS Quiz;")
+    cursor.execute("DROP TABLE IF EXISTS Signalement;")
 
     # On créé une première table qui contien la liste des quiz
     cursor.execute("""

@@ -1,2 +1,6 @@
 # TDLOG-Projet
-Projet de TDLOG: Développement d'un site de quizz de culture générale.
+AF: 
+- Finir le debuggage de la gestion de la reconnexion de l'hôte
+- Diversifier les modes de jeux
+
+  
