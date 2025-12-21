@@ -380,3 +380,41 @@ input:focus {
   background-color: #ff4444;
   box-shadow: 0 0 10px rgba(255, 68, 68, 0.6); /* Glow rouge plus intense */
 }
+
+/* Badge joueur dans la liste */
+.joueur-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #4a4f5a;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9em;
+  transition: all 0.3s ease;
+}
+
+/* Style quand le joueur est déconnecté */
+.joueur-badge.offline {
+  background-color: #3a3a3a; /* Plus sombre */
+  color: #888; /* Texte grisé */
+  border: 1px solid #555;
+  opacity: 0.7;
+}
+
+/* La pastille de statut */
+.status-dot {
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.green {
+  background-color: #28a745;
+  box-shadow: 0 0 5px #28a745;
+}
+
+.status-dot.red {
+  background-color: #dc3545;
+  box-shadow: none;
+}

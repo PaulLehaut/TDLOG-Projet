@@ -6,6 +6,7 @@ from database import obtenir_connexion_db, DB_PATH
 from thefuzz import fuzz
 import random
 import string
+import time
 
 # Imports pour l'IA
 try:
@@ -37,10 +38,14 @@ def register_socket_events():
             'etat': 'LOBBY',
             'joueurs': {}
         }
-        ROOMS[room_code]['joueurs'][request.sid] = {'pseudo': pseudo, 'score': 0}
+        ROOMS[room_code]['joueurs'][request.sid] = {'pseudo': pseudo, 'score': 0, 'statut': 'online'}
         join_room(room_code)
         print(f'room {room_code} créée par {pseudo}.')
-        emit('room_creee', {'code': room_code, 'joueurs': [pseudo]})
+        emit('room_creee', {'code': room_code, 'joueurs': [{
+                    'pseudo': pseudo,
+                    'statut':  'online',
+                    'score': 0
+                }]})
 
     @socketio.on('choisir_quiz')
     def choisir_quiz(data):
@@ -92,11 +97,12 @@ def register_socket_events():
             return
         
         ROOMS[room_code]['joueurs'][request.sid] = {'pseudo': pseudo, 'score': 0}
+        ROOMS[room_code]['joueurs'][request.sid]['statut'] = 'online'
         join_room(room_code)
         print(f'{pseudo} a rejoint la room {room_code}.')
 
-        liste_pseudos = [joueur['pseudo'] for joueur in ROOMS[room_code]['joueurs'].values()]
-        emit('maj_lobby', {'joueurs': liste_pseudos}, room = room_code)
+        envoyer_maj_lobby(room_code)
+        emit('rejoindre_room', {'code': room_code}, to=request.sid)
 
         if 'quiz_id' in ROOMS[room_code]:
             quiz_id = ROOMS[room_code]['quiz_id']
@@ -111,6 +117,10 @@ def register_socket_events():
     def prochaine_question(data):
         try:
             data['timer'] = int(data['timer']) 
+            if data['roomCode'] not in ROOMS:
+                return
+            ROOMS[data['roomCode']]['timer'] = data['timer']
+
         except ValueError:
             data['timer'] = 15
         socketio.start_background_task(cycle_jeu, data)
@@ -156,7 +166,107 @@ def register_socket_events():
     @socketio.on('disconnect')
     def gerer_deconnexion():
         id = request.sid
-    
+        for roomCode in ROOMS:
+            dic_joueurs = ROOMS[roomCode]['joueurs']
+            if id in dic_joueurs: 
+                if ROOMS[roomCode]['etat'] == 'LOBBY':
+                    dic_joueurs[id]['status'] = 'offline'
+                    envoyer_maj_lobby(roomCode)
+                    socketio.start_background_task(verifier_depart_definitif, roomCode, id, dic_joueurs[id]['pseudo'])
+
+    @socketio.on('reconnecter_joueur')
+    def gerer_reconnexion(data):
+        roomCode = data.get('roomCode')
+        pseudo = data.get('pseudo')
+
+        if not roomCode or roomCode not in ROOMS:
+            emit('erreur_connexion', {'message': "Cette session n'existe plus."})
+            return 
+        
+        ROOM = ROOMS[roomCode]
+        joueurs = ROOM['joueurs']
+        
+        donnees_recuperees = None
+        etait_hote = False
+        sids_a_supprimer = []
+
+        for sid, info in list(joueurs.items()):
+            if info['pseudo'] == pseudo:
+                donnees_recuperees = info
+                sids_a_supprimer.append(sid)
+                
+                if ROOM['host'] == sid:
+                    etait_hote = True
+
+        if not donnees_recuperees:
+            emit('erreur_connexion', {'message': "Joueur introuvable ou session expirée."})
+            return
+
+        for vieux_sid in sids_a_supprimer:
+            if vieux_sid in joueurs:
+                del joueurs[vieux_sid]
+        print(f"Nettoyage effectué pour {pseudo} : {len(sids_a_supprimer)} ancienne(s) connexion(s) supprimée(s).")
+
+        nouveau_sid = request.sid
+        joueurs[nouveau_sid] = donnees_recuperees
+        joueurs[nouveau_sid]['statut'] = 'online' 
+        
+        join_room(roomCode)
+        
+        if etait_hote:
+            ROOM['host'] = nouveau_sid
+
+        etat_actuel = ROOM['etat']
+        
+        if etat_actuel == 'JEU':
+            index = ROOM.get('current_index', 0)
+            
+            question_client = None
+            if index > 0 and index <= len(ROOM['questions']):
+                q_raw = ROOM['questions'][index - 1]
+                question_client = {
+                    'index': index - 1,
+                    'enonce': q_raw['énoncé'],
+                    'type_question': q_raw['type_question'],
+                    'propositions': q_raw.get('propositions', []),
+                    'id': q_raw['id']
+                }
+
+            fin_prevue = ROOM.get('fin_question_time', 0)
+            temps_restant = max(0, fin_prevue - time.time()) 
+
+            info_jeu = {
+                'score': donnees_recuperees['score'],
+                'index': index,
+                'total': len(ROOM.get('questions', [])),
+                'question': question_client,
+                'temps_restant' : temps_restant,
+                'timer': ROOM.get('timer', 15)
+            }
+
+            emit('session_restauree', {
+                'etat': 'JEU', 
+                'joueurs': [j for j in joueurs.values()], 
+                'info_jeu': info_jeu, 
+                'estHost': etait_hote
+            })
+
+        elif etat_actuel == 'LOBBY' or etat_actuel == 'INTRO':
+            liste_joueurs_propre = []
+            for j in joueurs.values():
+                liste_joueurs_propre.append({
+                    'pseudo': j['pseudo'],
+                    'statut': j.get('statut', 'online'),
+                    'score': j['score']
+                })
+
+            emit('session_restauree', {
+                'etat': etat_actuel, 
+                'joueurs': liste_joueurs_propre, 
+                'estHost': etait_hote
+            })
+        
+        envoyer_maj_lobby(roomCode)
 
     @socketio.on('reset_room')
     def reset_room(data):
@@ -190,7 +300,6 @@ def register_socket_events():
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     #                                         Fonction d'arrière plan
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
     # Création du quiz par l'IA
     def creation_ia(data):
         try :
@@ -242,6 +351,7 @@ def register_socket_events():
             }
 
             socketio.emit('nouvelle_question', {'question': question, 'total_questions': total_questions, 'index_actuel': index}, room = room_code)
+            ROOMS[room_code]['fin_question_time'] = time.time() + reponse_timer
             socketio.sleep(reponse_timer)
 
             reponse_question = question['reponse_correcte']
@@ -263,3 +373,40 @@ def register_socket_events():
         classement = sorted(liste_joueurs, key = lambda x: x['score'], reverse = True)
         ROOMS[room_code]['etat'] = 'FINI'
         socketio.emit('quiz_termine', {'classement': classement}, room = room_code)
+
+    # Vérifier qu'un joueur est vraiment parti (différence avec F5)
+    def verifier_depart_definitif(roomCode, ancien_sid, pseudo):
+        time.sleep(10) # Délai pour une potentielle reconnexion
+
+        if roomCode in ROOMS:
+            joueurs = ROOMS[roomCode]['joueurs']
+            est_revenu = False
+
+            for info in joueurs.values():
+                if info['pseudo'] == pseudo and info.get('statut') == 'online':
+                    est_revenu = True
+                    break
+
+            if est_revenu:
+                return
+            
+            print(f'Suppression définitive de {pseudo}.')
+            if ancien_sid in joueurs:
+                del joueurs[ancien_sid]
+            
+            envoyer_maj_lobby(roomCode)
+
+    # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    #                                         Fonction d'arrière plan
+    # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    def envoyer_maj_lobby(roomCode):
+        if roomCode in ROOMS:
+            liste_joueurs = []
+            for j in ROOMS[roomCode]['joueurs'].values():
+                liste_joueurs.append({
+                    'pseudo': j['pseudo'],
+                    'statut': j.get('statut', 'online'),
+                    'score': j['score']
+                })
+            emit('maj_lobby', {'joueurs': liste_joueurs}, room = roomCode) 
+

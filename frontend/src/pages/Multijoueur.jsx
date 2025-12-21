@@ -7,15 +7,16 @@ import { data } from 'react-router-dom';
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 const ETATS = {
-    SELECTION: "Choix de création d'une partie ou d'en rejoindre une",
-    LOBBY: 'Attente du lancement de la partie',
-    INTRO: 'Ecran de lancement de parti',
-    JEU: 'Partie en cours',
-    VALIDATION: "Validation d'une question",
-    REPONSE: "Affichage de la réponse à une question",
-    FINIT: 'Partie terminée',
-    FERMEE: 'Fermeture du lobby',
-    ERREUR: 'erreur'
+  CHARGEMENT: 'Chargement de la partie',
+  SELECTION: "Choix de création d'une partie ou d'en rejoindre une",
+  LOBBY: 'Attente du lancement de la partie',
+  INTRO: 'Ecran de lancement de parti',
+  JEU: 'Partie en cours',
+  VALIDATION: "Validation d'une question",
+  REPONSE: "Affichage de la réponse à une question",
+  FINIT: 'Partie terminée',
+  FERMEE: 'Fermeture du lobby',
+  ERREUR: 'erreur'
 }
 
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -49,36 +50,63 @@ function Multijoueur({socket})
   const [listeJoueurs, editerListeJoueurs] = useState([]);
   const [estHote, editerEstHote] = useState(false); // Important de savoir si un joueur est l'hôte de la partie pour afficher certains boutons (comme demarrer)
   const [classementFinal, editerClassementFinal] = useState([]);
+  const [tempsRestantReco, editerTempsRestant] = useState(null); // Temps restant pour répondre à la question en cours en cas de reconnexion
 
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   //                    Declaration des effets
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   useEffect(() => {
-    editerEtat(ETATS.SELECTION);
-    chargerQuiz();
-  }, []);
-    
-  useEffect(() => {
-    if (!socket) 
+    if (!socket)
       return;
-    
+
+    socket.on('connect', () => {
+      console.log('Socket connecté.')
+    });
+
     socket.on('room_creee', (data) => {
       editerRoomCode(data.code)
       editerListeJoueurs(data.joueurs);
       editerEtat(ETATS.LOBBY);
+      sessionStorage.setItem('party_room', roomCode);
     });
-    
+
+    socket.on('session_restauree', (data) => {
+      console.log('Session restaurée !');
+      editerEstHote(!!data.estHost);
+
+      editerListeJoueurs(data.joueurs);
+      switch (data.etat)
+      {
+        case 'LOBBY': 
+        {
+          editerEtat((ETATS.LOBBY));
+          break;
+        }
+        case 'INTRO':
+        {
+          editerEtat((ETATS.INTRO));
+          break;
+        }
+        case 'JEU':
+        {
+          editerScore(data.info_jeu.score);
+          editerNbQuestions(data.info_jeu.total);
+          editerQuestionLive(data.info_jeu.question);
+          editerTimer(data.info_jeu.timer);
+          editerTempsRestant(data.info_jeu.temps_restant);
+          editerEtat(ETATS.JEU);
+          break;
+        }
+      }
+    });
+
     socket.on('maj_lobby', (data) => {
       editerListeJoueurs(data.joueurs);
-      editerEtat((etatActuel) => {
-        if (etatActuel === ETATS.INTRO || etatActuel === ETATS.JEU)
-          return etatActuel;
-        return ETATS.LOBBY;
-      });
     });
-    
-    socket.on('erreur_connexion', (data) => {
-      alert(data.message);
+
+    socket.on('rejoindre_room', (data) => {
+      editerRoomCode(data.code);
+      editerEtat(ETATS.LOBBY);
     });
     
     socket.on('quiz_selectionne', (data) => {
@@ -91,6 +119,7 @@ function Multijoueur({socket})
       editerNbQuestions(data.total_questions)
       editerQuestionLive(data.question);
       editerFeedBack(null);
+      editerTempsRestant(null);
       editerEtat(ETATS.JEU);
       bonneReponse.current = false;
     });
@@ -102,7 +131,7 @@ function Multijoueur({socket})
         bonneReponse.current = true;
       } 
       editerEtat(ETATS.VALIDATION);
-      });
+    });
     
     socket.on('afficher_reponse', (data) => {
       if (bonneReponse.current === true)
@@ -133,10 +162,41 @@ function Multijoueur({socket})
     editerQuizNom('');
     editerQuizDesc('');
     editerEtat(ETATS.LOBBY);
-    })
+    });
+
+    socket.on('erreur_connexion', (data) => {
+      alert(data.message);
+      sessionStorage.clear();
+      editerEtat(ETATS.SELECTION);
+    });
+
+    const savedRoom = sessionStorage.getItem('party_room');
+    const savedPseudo = sessionStorage.getItem('joueur_pseudo');
+
+    if (savedRoom && savedPseudo)
+    {
+      console.log('Tentative de reconnexion pour', savedPseudo);
+      editerPseudo(savedPseudo);
+      editerRoomCode(savedRoom);
+
+      const savedHote = sessionStorage.getItem('est_hote');
+      if (savedHote === 'true') 
+        editerEstHote(true);
+
+      socket.emit('reconnecter_joueur', {roomCode: savedRoom, pseudo: savedPseudo});
+    }
+    else 
+    {
+      editerEtat(ETATS.SELECTION);
+    }
+
     
     return () => {
+      socket.off('connect');
+      socket.off('session_restauree')
       socket.off('room_creee');
+      socket.off('rejoindre_room');
+      socket.off('quiz_selectionne')
       socket.off('maj_lobby');
       socket.off('erreur_connexion');
       socket.off('nouvelle_question');
@@ -147,6 +207,10 @@ function Multijoueur({socket})
     };
   }, [socket]);
 
+  useEffect(() => {
+    chargerQuiz();
+  }, []);
+  
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   //              Les fonctions pour les actions de l'utilisateur
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -172,6 +236,10 @@ function Multijoueur({socket})
       code: roomCode,
       pseudo: pseudo
     };
+    
+    sessionStorage.setItem('party_room', roomCode);
+    sessionStorage.setItem('joueur_pseudo', pseudo);
+    sessionStorage.setItem('est_hote', false);
 
     socket.emit('rejoindre_room', data);
   }
@@ -192,6 +260,9 @@ function Multijoueur({socket})
     const data = {
       pseudo: pseudo
     }
+
+    sessionStorage.setItem('joueur_pseudo', pseudo);
+    sessionStorage.setItem('est_hote', true);
 
     socket.emit('creer_room', data);
     editerEstHote(true);
@@ -220,7 +291,7 @@ function Multijoueur({socket})
   }
 
   // Retour à l'accueil 
-  async function resetROOM()
+  async function retourAuLobby()
   {
     if (socket && roomCode)
     {
@@ -228,11 +299,31 @@ function Multijoueur({socket})
     }
   }
 
+  async function resetROOM()
+  {
+    sessionStorage.clear();
+    if (socket && roomCode)
+    {
+      socket.emit('reset_room', {roomCode});
+    }
+    window.location.reload();
+  }
+
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   //                          Affichage 
   //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
   function renderContent()
   {
+    if (etatApp === ETATS.CHARGEMENT)
+    {
+      return (
+        <div className="lobby-container">
+            <h2>Chargement...</h2>
+            <p>Veuillez patienter.</p>
+        </div>
+      );
+    }
+
     if (etatApp === ETATS.SELECTION)
     {
       return (
@@ -282,8 +373,10 @@ function Multijoueur({socket})
             <h3>Joueurs connectés ({listeJoueurs.length}) :</h3>
             <ul>
               {listeJoueurs.map((joueur, index) => (
-                <li key={index}>
-                  {joueur === pseudo ? <strong>{joueur} (Moi)</strong> : joueur}
+                <li key={index} className={`joueur-badge ${joueur.statut === 'offline' ? 'offline' : ''}`}>
+                  <span className={`status-dot ${joueur.statut === 'offline' ? 'red' : 'green'}`}></span>
+                  {joueur.pseudo === pseudo ? <strong>{joueur.pseudo} (Moi)</strong> : joueur.pseudo}
+                  {joueur.statut === 'offline' && <span style={{fontSize: '0.8em', fontStyle:'italic'}}> (Parti...)</span>}
                 </li>
                ))}
             </ul>
@@ -359,6 +452,15 @@ function Multijoueur({socket})
     }
     if (etatApp === ETATS.JEU || etatApp === ETATS.VALIDATION || etatApp === ETATS.REPONSE)
     {
+      if (!questionLive)
+      {
+        return (
+          <div className='lobby-container'>
+            <h2>Reconnexion en cours...</h2>
+            <p>Récupération des données de la partie.</p>
+          </div>
+        )
+      }
       return(
         <QuizGame
           question = {questionLive}
@@ -367,6 +469,7 @@ function Multijoueur({socket})
           feedback = {feedback}  
           etat_jeu = {etatApp}
           timer = {timer}
+          temps_restant = {tempsRestantReco}
           roomCode = {roomCode}
           socket = {socket}
         />  
@@ -390,9 +493,17 @@ function Multijoueur({socket})
               ))}
             </ul>
           </div>
+          
+          {estHote ? (
+            <button className='start-button' onClick={retourAuLobby}>
+              Retour à l'accueil
+            </button>
+          ) : (
+            <div className='alert alert-info'>Attente de l'hôte pour rejouer...</div>
+          )}
 
-          <button className='start-button' onClick={resetROOM}>
-            Retour à l'accueil
+          <button className='go-back-button' onClick={resetROOM} style={{marginTop: '10px'}}>
+            Quitter la partie
           </button>
         </div>
       );
@@ -430,7 +541,7 @@ function Multijoueur({socket})
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 //                          Composant secondaire
 //"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, roomCode, socket})
+function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, temps_restant, roomCode, socket})
 {
   const [reponseSimple, editerReponseSimple] = useState('');
   const [reponseSoumise, editerReponseSoumise] = useState(false);
@@ -454,7 +565,10 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, room
     if (etat_jeu === ETATS.REPONSE)
       timerMS = 5000; // On affiche la réponse pendant 5s
     else 
-      timerMS = timer * 1000;
+    {
+      const duree = (temps_restant !== null ? temps_restant : timer);
+      timerMS = duree * 1000;
+    }
 
     const intervalTime = 100; // Mise à jour toute les 0.1s
     const step = 100 / (timerMS / intervalTime);

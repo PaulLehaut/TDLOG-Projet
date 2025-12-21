@@ -24,16 +24,19 @@ register_socket_events()
 # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 @app.route('/')
-def serve_react():
-    # Sert le fichier HTML principal
+def serve_index():
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    return "Erreur : index.html introuvable.", 404
+
+@app.route('/multijoueur')
+def serve_multijoueur():
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.route('/<path:path>')
 def serve_static(path):
-    # Sert les autres fichiers (CSS, JS, Images) s'ils existent
     if os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
-    # Sinon, on renvoie index.html (pour que React gère les routes)
     return send_from_directory(app.static_folder, 'index.html')
 
 
