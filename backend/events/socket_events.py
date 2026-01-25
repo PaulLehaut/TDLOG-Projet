@@ -136,7 +136,12 @@ def register_socket_events():
             current_quest = data['question'] 
 
             ROOM = ROOMS[room_code]
+            fin_prevue = ROOM.get('fin_question_time', 0)
             current_index = ROOM['current_index']
+
+            if time.time() > (fin_prevue + 1.0):
+                print(f"Réponse refusée (Trop tard) pour {request.sid}")
+                return
             
             room_quest = ROOM['questions'][current_index - 1] 
 
@@ -284,8 +289,8 @@ def register_socket_events():
         for joueurs_sid in ROOMS[room_code]['joueurs']:
             ROOMS[room_code]['joueurs'][joueurs_sid]['score'] = 0
 
-        liste_pseudos = [j['pseudo'] for j in ROOMS[room_code]['joueurs'].values()]
-        emit('force_lobby', {'joueurs': liste_pseudos}, room=room_code)
+        envoyer_maj_lobby(room_code)
+        emit('force_lobby', {'joueurs': [j for j in ROOMS[room_code]['joueurs'].values()]}, room=room_code)
 
     #"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     #                                    Evènements Admin

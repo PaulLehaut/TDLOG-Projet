@@ -67,7 +67,7 @@ function Multijoueur({socket})
       editerRoomCode(data.code)
       editerListeJoueurs(data.joueurs);
       editerEtat(ETATS.LOBBY);
-      sessionStorage.setItem('party_room', roomCode);
+      sessionStorage.setItem('party_room', data.code);
     });
 
     socket.on('session_restauree', (data) => {
@@ -591,11 +591,14 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, temp
     e.preventDefault(); // On ne recharge pas la page
     if (reponseSimple.trim() === '')
       return;
+    if (etat_jeu !== ETATS.JEU)
+       return;
+
     editerReponseSoumise(true);
     socket.emit('envoyer_reponse', {roomCode, reponse_utilisateur: reponseSimple, question});
   }
 
-  const validation_en_cours = (etat_jeu === ETATS.VALIDATION);
+  const interaction_bloquee = (etat_jeu === ETATS.VALIDATION || etat_jeu === ETATS.REPONSE);
 
   // Gestion d'un signalement
   async function gererSignalement()
@@ -647,10 +650,12 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, temp
                 key = {index}
                 className='qcm-bouton'
                 onClick = {() => {
+                  if (etat_jeu !== ETATS.JEU)
+                     return;
                   editerReponseSoumise(true);
                   socket.emit('envoyer_reponse', {roomCode, reponse_utilisateur: index + 1, question})
                 }}
-                disabled = {validation_en_cours || reponseSoumise} 
+                disabled = {interaction_bloquee || reponseSoumise} 
               >
                 {prop}
               </button>
@@ -664,9 +669,9 @@ function QuizGame({question, score, nbQuestions, feedback, etat_jeu, timer, temp
               value = {reponseSimple}
               onChange = {(e) => editerReponseSimple(e.target.value)}
               placeholder = 'Votre reponse: '
-              disabled = {validation_en_cours || reponseSoumise}
+              disabled = {interaction_bloquee || reponseSoumise}
             />
-            <button type = "submit" disabled = {validation_en_cours || reponseSoumise}>
+            <button type = "submit" disabled = {interaction_bloquee || reponseSoumise}>
               {reponseSoumise ? 'Réponse Envoyée' : 'Valider'}
             </button>
           </form>
