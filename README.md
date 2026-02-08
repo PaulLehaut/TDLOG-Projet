@@ -212,7 +212,7 @@ Base de Données	                    SQLite3	                                  S
 Validation	                        TheFuzz	                                  Algorithme de correspondance floue pour les réponses textuelles (socket_events.py).
 ```
 
-NB: Il faut tutiliser ngrok pour lancer le site et la secret_key est SECRET_KEY=tdlog-secret-key 
+NB: Il faut utiliser ngrok pour lancer le site et la secret_key est SECRET_KEY=tdlog-secret-key 
 
 
 
