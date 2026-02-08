@@ -58,7 +58,7 @@ Le cycle de jeu est géré par la focntion cycle_jeu qui est asynchrone et qui o
 5. Calculer le classement et émettre 'quiz_termine'
 
 
-##data_base/générer_json_ia.py ##
+## data_base/générer_json_ia.py ##
 
 Ce fichier fait le lien avec l'API Google Gemini 2.5 Flash pour créer du contenu structuré 
 
@@ -70,7 +70,7 @@ Ce fichier fait le lien avec l'API Google Gemini 2.5 Flash pour créer du conten
 
 
 
-### data_base/creer_db.py & remplir_db.py ###
+## data_base/creer_db.py & remplir_db.py ##
 
 On utilise SQLite pour le légèreté et la rapidité 
 
@@ -81,12 +81,13 @@ Schéma rationnel :
 * Signalement (id, question_id, message) - Pour la modération
 
 
-*** Logique d'insertion (pour remplir_db.py) ***
+** Logique d'insertion (pour remplir_db.py) **
+
 Le script prend le JSON généré par l'IA et les met dans les tables. Il gère l'intégrité référentielle (créee le Quiz d'abord, récupère l'ID, puis créee les Questions liées).
 
 
 
-### API REST (routes/general.py & routes/admin.py) ###
+## API REST (routes/general.py & routes/admin.py) ##
 
 Permet de gérer les interactions hors-jeu via Flask Blueprints.
 
@@ -97,7 +98,7 @@ Endpoint	                Méthode	                                        Descri
 /api/signalement	        POST	                        Permet aux joueurs de signaler une question erronée.
 
 
-*** Gestions d'erreurs ***
+** Gestions d'erreurs **
 
 Pour les déconnexions ( socket_events.py)
 Le système distingue une acutalisation de page (f5) d'un départ définitif. 
@@ -112,7 +113,7 @@ Quiz IA :
 Si l'IA renvoie un index 0 (hors bornes pour l'humain 1-4) ou une chaîne de caractères au lieu d'un index pour un QCM, le script de parsing tente de corriger ou applique une valeur par défaut ("1") pour éviter le crash de l'application.
 
 
-### 2 points intéressants : Le système de signamelent et la gestion des sessions (toujours en cours d'implémentation) ###
+## 2 points intéressants : Le système de signamelent et la gestion des sessions (toujours en cours d'implémentation) ##
 
 ** Système de signalement **
 Le jeu intègre une boucle de rétroaction permettant aux joueurs de signaler une erreur (contenu offensant, inexactitude factuelle, coquille) directement depuis l'interface de jeu. Ces signalements sont persistés en base de données pour être traités ultérieurement par un administrateur via des endpoints dédiés.
@@ -149,7 +150,7 @@ Deux actions de modération sont exposées via l'API :
 * Rejet du signalement (DELETE /api/admin/signalement/<id>) : Si le signalement est abusif ou incorrect, l'admin supprime uniquement l'entrée dans la table Signalement, laissant la question intacte.
 
 
-*** Gestion des sessions***
+** Gestion des sessions **
 Contrairement aux requêtes HTTP classiques, les connexions WebSocket (Socket.IO) sont persistantes mais volatiles. Si un joueur actualise sa page (F5) ou subit une micro-coupure réseau :
 1. La connexion socket est coupée immédiatement.
 2. Le serveur détecte une déconnexion (disconnect).
