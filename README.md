@@ -1,24 +1,20 @@
 # TDLOG-Projet
 Ce projet consiste en une plateforme de quiz interactive développée en React et Flask. Elle propose une expérience allant du jeu en solo aux parties privées multijoueurs en temps réel (via WebSockets). Au-delà des quiz classiques, l'application se propose un moteur de génération automatique basé sur l'IA, permettant de créer des questionnaires uniques et personnalisés en quelques secondes sur n'importe quel sujet.
 
-
+Vue d'ensemble:
 Client (React + Vite)
     │
-    ├── Requetes HTTP (GET/POST) ──┐
-    │                              ▼
-    │                       API REST (Flask)
-    │                              │
-    │        ┌─────────────────────┴──────────────────────┐
-    │        │                                            │
-    ▼        ▼                                            ▼
-Socket.IO (Events) ◄───► Orchestrateur (Socket Events) ──► Base de Données (SQLite)
+    ├── Navigation & Admin (HTTP/REST) ──┐
+    │                                    ▼
+    │                            API Flask (Blueprints)
+    │                                    │
+    │        ┌───────────────────────────┴──────────────────────────┐
+    │        │                                                      │
+    ▼        ▼                                                      ▼
+Socket.IO (Events) ◄───► Moteur de Jeu (Python/Memory) ──► Base de Données (SQLite)
                              │
                              ▼
                     Service IA (Google Gemini)
-                             │
-                             ▼
-                    Génération & Parsing JSON
-
 
 ## FICHIER CENTRAL ## backend/events/socket_events.py
 
@@ -185,7 +181,7 @@ Navigateur (Client)                          Serveur (Python)
       │    dans sessionStorage                   │
       │                                          │
       │  ACTION: Rafraîchissement (F5)           │
-      │  Socket coupé ───────────────────────►   │    Event: 'disconnect'
+      │  Socket coupé ────────────────────────►  │    Event: 'disconnect'
       │                                          │    ├─ Statut Joueur = 'offline'
       │                                          │    └─ Start Timer(10s)
       │                                          │
@@ -201,7 +197,6 @@ Navigateur (Client)                          Serveur (Python)
       │    (Restaure interface Jeu)              │    Timer 10s expire
       │                                          │    └─ Joueur est 'online' ?
       │                                          │       ➔ ANNULATION SUPPRESSION
-
 
 
 Synthèse : 
